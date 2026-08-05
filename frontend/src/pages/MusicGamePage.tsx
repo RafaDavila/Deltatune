@@ -28,9 +28,9 @@ function MusicGamePage() {
           className="daily-challenge"
           aria-label="Música do dia número 1"
         >
-        <span>Música do dia</span>
-        <strong>#001</strong>
-       </div>
+          <span>Música do dia</span>
+          <strong>#001</strong>
+        </div>
 
         <div className="lives">
           <div
@@ -58,13 +58,44 @@ function MusicGamePage() {
                 {index + 1}
               </span>
 
-
               <span className="attempt-slot__duration">
                 {duration.toString().replace(".", ",")}s
               </span>
             </div>
           ))}
         </div>
+
+        <section className="audio-player">
+          <div className="audio-player__info">
+            <span>Trecho liberado</span>
+            <strong>0,5 segundo</strong>
+          </div>
+
+          <div
+            className="audio-timeline"
+            aria-label="Primeiro trecho de seis liberado"
+          >
+            {attemptDurations.map((duration, index) => (
+              <span
+                key={duration}
+                className={
+                  index === 0
+                    ? "audio-timeline__segment audio-timeline__segment--active"
+                    : "audio-timeline__segment"
+                }
+              />
+            ))}
+          </div>
+
+          <button
+            className="play-button"
+            type="button"
+            aria-label="Reproduzir trecho da música"
+          >
+            <img src={heartIcon} alt="" aria-hidden="true" />
+            <span>Reproduzir</span>
+          </button>
+        </section>
       </section>
     </main>
   );

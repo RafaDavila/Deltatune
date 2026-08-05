@@ -252,6 +252,78 @@
   font-size: 1rem;
 }
 
+.audio-player {
+  margin-top: 38px;
+  text-align: center;
+}
+
+.audio-player__info {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  text-transform: uppercase;
+}
+
+.audio-player__info span {
+  color: #bdbdbd;
+  font-size: 0.8rem;
+  letter-spacing: 1px;
+}
+
+.audio-player__info strong {
+  color: #ffffff;
+  font-size: 0.85rem;
+  letter-spacing: 1px;
+}
+
+.audio-timeline {
+  display: grid;
+  grid-template-columns: 1fr 1fr 2fr 4fr 8fr 16fr;
+  gap: 3px;
+  height: 18px;
+}
+
+.audio-timeline__segment {
+  background-color: #34343c;
+  border: 1px solid #4d4d58;
+}
+
+.audio-timeline__segment--active {
+  background-color: #ff3158;
+  border-color: #ff6a85;
+}
+
+.play-button {
+  display: inline-flex;
+  align-items: center;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 24px;
+  padding: 0;
+  color: #ffffff;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.play-button img {
+  width: 46px;
+  height: 46px;
+  image-rendering: pixelated;
+  transition: transform 150ms ease;
+}
+
+.play-button:hover img {
+  transform: scale(1.15);
+}
+
+.play-button:focus-visible {
+  outline: 3px solid rgba(255, 49, 88, 0.5);
+  outline-offset: 6px;
+}
+
 @media (max-width: 600px) {
   .music-game {
     padding: 22px 14px 48px;
