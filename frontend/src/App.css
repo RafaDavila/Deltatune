@@ -1,0 +1,122 @@
+#root {
+  min-height: 100vh;
+}
+
+.home {
+  min-height: 100vh;
+  padding: 48px 24px;
+  background:
+    radial-gradient(circle at top, #24102f 0%, #08080c 38%, #050505 75%);
+}
+
+.home__header {
+  margin-bottom: 56px;
+  text-align: center;
+}
+
+.home__header h1 {
+  margin: 0;
+  color: #ffffff;
+  font-size: clamp(2.8rem, 9vw, 6rem);
+  letter-spacing: 8px;
+  text-shadow:
+    4px 4px 0 #76149c,
+    8px 8px 0 #240833;
+}
+
+.home__header p {
+  margin-top: 18px;
+  color: #cfcfcf;
+  font-size: 1.1rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.game-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 420px));
+  justify-content: center;
+  gap: 28px;
+}
+
+.game-card {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 20px;
+  min-height: 230px;
+  padding: 32px;
+  color: #8d8d8d;
+  text-align: left;
+  background-color: rgba(9, 9, 13, 0.92);
+  border: 3px solid #555555;
+  box-shadow: 8px 8px 0 #1d1d1d;
+}
+
+.game-card--available {
+  color: #ffffff;
+  border-color: #ffffff;
+  cursor: pointer;
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.game-card--available:hover {
+  transform: translateY(-6px);
+  border-color: #ff3158;
+  box-shadow: 8px 12px 0 #661329;
+}
+
+.game-card__heart {
+  color: #ff3158;
+  font-size: 2.5rem;
+  line-height: 1;
+}
+
+.game-card h2 {
+  margin: 0 0 16px;
+  font-size: 1.5rem;
+  text-transform: uppercase;
+}
+
+.game-card p {
+  margin: 0;
+  line-height: 1.6;
+}
+
+.game-card__status {
+  grid-column: 2;
+  align-self: end;
+  color: #ff3158;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.game-card:disabled {
+  cursor: not-allowed;
+}
+
+@media (max-width: 760px) {
+  .home {
+    padding: 36px 18px;
+  }
+
+  .home__header {
+    margin-bottom: 40px;
+  }
+
+  .home__header h1 {
+    letter-spacing: 3px;
+  }
+
+  .game-list {
+    grid-template-columns: minmax(0, 420px);
+  }
+
+  .game-card {
+    min-height: 210px;
+    padding: 24px;
+  }
+}
