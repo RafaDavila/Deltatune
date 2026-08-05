@@ -126,3 +126,47 @@
     padding: 24px;
   }
 }
+
+.music-game {
+  min-height: 100vh;
+  padding: 32px 24px;
+  background:
+    radial-gradient(circle at top, #24102f 0%, #08080c 38%, #050505 75%);
+}
+
+.back-link {
+  display: inline-block;
+  color: #ffffff;
+  text-decoration: none;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.back-link:hover {
+  color: #ff3158;
+}
+
+.music-game__header {
+  max-width: 900px;
+  margin: 40px auto 0;
+  text-align: center;
+}
+
+.music-game__logo {
+  display: block;
+  width: min(360px, 75vw);
+  height: auto;
+  margin: 0 auto 32px;
+  image-rendering: pixelated;
+}
+
+.music-game__header h2 {
+  margin: 0 0 16px;
+  font-size: 2rem;
+  text-transform: uppercase;
+}
+
+.music-game__header p {
+  color: #cfcfcf;
+  line-height: 1.6;
+}
