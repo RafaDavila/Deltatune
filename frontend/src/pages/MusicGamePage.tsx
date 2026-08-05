@@ -21,22 +21,16 @@ function MusicGamePage() {
 
       <section className="music-panel">
         <div className="music-panel__heading">
-          <h2>Adivinhe a música</h2>
           <p>Escute o trecho e descubra qual música está tocando.</p>
         </div>
 
-        <label className="chapter-filter">
-          <span>Seleção de músicas</span>
-
-          <select defaultValue="all">
-            <option value="all">Todos os capítulos</option>
-            <option value="1">Capítulo 1</option>
-            <option value="2">Capítulo 2</option>
-            <option value="3">Capítulo 3</option>
-            <option value="4">Capítulo 4</option>
-            <option value="5">Capítulo 5</option>
-          </select>
-        </label>
+        <div
+          className="daily-challenge"
+          aria-label="Música do dia número 1"
+        >
+        <span>Música do dia</span>
+        <strong>#001</strong>
+       </div>
 
         <div className="lives">
           <div
@@ -64,9 +58,6 @@ function MusicGamePage() {
                 {index + 1}
               </span>
 
-              <span className="attempt-slot__message">
-                Tentativa disponível
-              </span>
 
               <span className="attempt-slot__duration">
                 {duration.toString().replace(".", ",")}s
