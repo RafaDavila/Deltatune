@@ -189,7 +189,10 @@ function MusicGamePage() {
 
         <div className="attempt-list">
           {attemptDurations.map((duration, index) => (
-            <div className="attempt-slot" key={duration}>
+            <div className={`attempt-slot attempt-slot--${
+                    attemptResults[index]?.status ?? "empty"
+            }`}
+             key={duration}>
               <span className="attempt-slot__number">
                 {index + 1}
               </span>

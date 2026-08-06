@@ -444,10 +444,6 @@
 }
 
 .attempt-slot__result--skipped {
-  color: #777780
-}
-
-.attempt-slot__result--skipped {
   color: #8d8d8d;
 }
 
@@ -458,6 +454,54 @@
 .attempt-slot__result--correct {
   color: #58e879;
   font-weight: 700;
+}
+
+.attempt-slot--correct {
+  color: #58e879;
+  background-color: rgba(88, 232, 121, 0.08);
+  border-color: #58e879;
+  box-shadow: 
+      0 0 0 1px rgba(88, 232, 121, 0.25),
+      0 0 18px rgba(88, 232, 121, 0.18);
+    animation: correct-shake 450ms ease-in-out;
+}
+
+.attempt-slot--correct .attempt-slot__number {
+  color: #58e879;
+  border-right-color: #58e879;
+}
+
+.attempt-slot--correct .attempt-slot__duration {
+  color: #58e879;
+}
+
+@keyframes correct-shake {
+  0%,
+  100%{ 
+    transform: translateX(0);
+  }
+
+  20% {
+    transform: translateX(-6px);
+  }
+
+  40% {
+    transform: translateX(6px);
+  }
+
+  60% {
+    transform: translateX(-3px);
+  }
+
+  80% {
+    transform: translateX(3px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .attempt-slot--correct {
+    animation: none;
+  }
 }
 
 @media (max-width: 600px) {
