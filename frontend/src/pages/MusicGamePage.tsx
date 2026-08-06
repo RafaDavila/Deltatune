@@ -4,6 +4,7 @@ import heartIcon from "../assets/heart.png";
 import { useEffect, useRef, useState, type SubmitEvent } from "react";
 import testSongAudio from "../assets/audio/BIG SHOT.mp3";
 import TutorialModal from "../components/TutorialModal";
+import SiteFooter from "../components/SiteFooter";
 
 const attemptDurations = [0.5, 1, 2, 4, 8, 16];
 const dailySongTitle = "BIG SHOT";
@@ -317,6 +318,12 @@ function handleCloseTutorial(dontShowAgain: boolean) {
 
           </div>
         </form>
+
+        <SiteFooter />
+
+        {isTutorialOpen && (
+          <TutorialModal onClose={handleCloseTutorial} />
+        )}
 
       </section>
       {isTutorialOpen && (

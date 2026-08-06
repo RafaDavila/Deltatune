@@ -1,6 +1,7 @@
 import { Link } from "react-router";
 import deltatuneLogo from "../assets/deltatune-logo.png";
 import heartIcon from "../assets/heart.png";
+import SiteFooter from "../components/SiteFooter";
 
 function HomePage() {
   return (
@@ -53,6 +54,7 @@ function HomePage() {
           <span className="game-card__status">Em breve</span>
         </button>
       </section>
+      <SiteFooter />
     </main>
   );
 }
