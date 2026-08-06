@@ -1,10 +1,11 @@
 import { Link } from "react-router";
 import deltatuneLogo from "../assets/deltatune-logo.png";
 import heartIcon from "../assets/heart.png";
-import { useState, type SubmitEvent } from "react";
+import { useEffect, useRef, useState, type SubmitEvent } from "react";
+import testSongAudio from "../assets/audio/BIG SHOT.mp3";
 
 const attemptDurations = [0.5, 1, 2, 4, 8, 16];
-const dailySongTitle = "Rude Buster";
+const dailySongTitle = "BIG SHOT";
 const songTitles = [
   "Rude Buster",
   "Field of Hopes and Dreams",
@@ -23,7 +24,21 @@ type AttemptResult = {
 
 function MusicGamePage() {
   const [guess, setGuess] = useState("");
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const stopTimerRef = 
+          useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
   const [attemptResults, setAttemptResults] = useState<AttemptResult[]>([]);
+  useEffect(() => {
+    const audio = audioRef.current;
+
+    return () => {
+      if (stopTimerRef.current){
+        clearTimeout(stopTimerRef.current);
+      }
+      audio?.pause();
+    }
+  }, [])
   const failedAttempts = attemptResults.filter(
     (result) => result.status !== "correct",
   ).length;
@@ -37,10 +52,59 @@ function MusicGamePage() {
     (result) => result.status === "correct",
   );
   const gameFinished = hasWon || failedAttempts === attemptDurations.length;
+  const maximumDuration =
+    attemptDurations[attemptDurations.length - 1];
+  
+  const unlockedDuration = gameFinished
+    ? maximumDuration
+    : attemptDurations[currentAttempt];
+  function stopAudio() {
+  if (stopTimerRef.current) {
+    clearTimeout(stopTimerRef.current);
+    stopTimerRef.current = null;
+  }
+
+  const audio = audioRef.current;
+
+  if (audio) {
+    audio.pause();
+    audio.currentTime = 0;
+  }
+
+  setIsPlaying(false);
+}
+
+  async function handlePlay() {
+  const audio = audioRef.current;
+
+  if (!audio) {
+    return;
+  }
+
+  stopAudio();
+
+  try {
+    await audio.play();
+    setIsPlaying(true);
+
+    const clipDuration =
+      unlockedDuration * 1000;
+
+    stopTimerRef.current = setTimeout(
+      stopAudio,
+      clipDuration,
+    );
+  } catch (error) {
+    console.error("Não foi possível reproduzir o áudio:", error);
+    stopAudio();
+  }
+}
+
   function handleSkip() {
     if (gameFinished) {
       return;
     }
+    stopAudio();
     setAttemptResults((previousResults) => [
       ...previousResults,
       {
@@ -50,7 +114,7 @@ function MusicGamePage() {
     ]);
     setGuess("")
   }
-  function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
+  function handleSubmit(event: SubmitEvent<HTMLFormElement>,) {
     event.preventDefault();
 
     const cleanedGuess = guess.trim();
@@ -58,6 +122,7 @@ function MusicGamePage() {
     if (gameFinished || !cleanedGuess) {
       return;
     }
+    stopAudio();
     const isCorrect = 
       cleanedGuess.toLocaleLowerCase() ===
       dailySongTitle.toLocaleLowerCase();
@@ -145,14 +210,18 @@ function MusicGamePage() {
           ))}
         </div>
 
-        <section className="audio-player">
+        <section className="audio-player" >
+          <audio
+            ref={audioRef}
+            src={testSongAudio}
+            preload="auto"
+            onEnded={stopAudio}
+            />
           <div className="audio-player__info">
             <span>Trecho liberado</span>
             <strong>
-              {attemptDurations[currentAttempt].toString().replace(".",",")}{" "}
-              {attemptDurations[currentAttempt] <= 1
-              ? "segundo"
-              : "segundos"} 
+              {unlockedDuration.toString().replace(".",",")}{" "}
+              {unlockedDuration <= 1 ? "segundo" : "segundos"}
             </strong>
           </div>
 
@@ -164,7 +233,7 @@ function MusicGamePage() {
               <span
                 key={duration}
                 className={
-                  index <= currentAttempt
+                  gameFinished || index <= currentAttempt
                     ? "audio-timeline__segment audio-timeline__segment--active"
                     : "audio-timeline__segment"
                 }
@@ -176,9 +245,12 @@ function MusicGamePage() {
             className="play-button"
             type="button"
             aria-label="Reproduzir trecho da música"
+            onClick={handlePlay}
           >
             <img src={heartIcon} alt="" aria-hidden="true" />
-            <span>Reproduzir</span>
+            <span>
+              {isPlaying? "Tocando..." : "Reproduzir"}
+            </span>
           </button>
         </section>
 
