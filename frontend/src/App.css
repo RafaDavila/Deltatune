@@ -504,6 +504,150 @@
   }
 }
 
+.tutorial-button {
+  display: grid;
+  justify-self: end;
+  width: 46px;
+  height: 46px;
+  padding: 0;
+  color: #ffffff;
+  background-color: #0a0a0f;
+  border: 2px solid #555560;
+  cursor: pointer;
+  font: inherit;
+  font-size: 1.3rem;
+  place-items: center;
+}
+
+.tutorial-button:hover {
+  color: #ff3158;
+  border-color: #ff3158;
+}
+
+.tutorial-button:focus-visible {
+  outline: 3px solid rgba(255, 49, 88, 0.4);
+  outline-offset: 3px;
+}
+
+.tutorial-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  padding: 24px;
+  background-color: rgba(0, 0, 0, 0.82);
+  backdrop-filter: blur(4px);
+  overflow-y: auto;
+  place-items: center;
+}
+
+.tutorial-modal {
+  position: relative;
+  width: min(560px, 100%);
+  max-height: calc(100vh - 48px);
+  padding: 38px;
+  color: #ffffff;
+  text-align: left;
+  background:
+    radial-gradient(circle at top, #24102f 0%, #09090f 55%);
+  border: 3px solid #ffffff;
+  box-shadow:
+    8px 8px 0 #641079,
+    0 0 30px rgba(100, 16, 121, 0.35);
+  overflow-y: auto;
+}
+
+.tutorial-modal__close {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  padding: 4px 9px;
+  color: #bdbdbd;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  font-size: 1.5rem;
+}
+
+.tutorial-modal__close:hover {
+  color: #ff3158;
+}
+
+.tutorial-modal__heart {
+  width: 34px;
+  height: 34px;
+  margin: 0 auto 14px;
+  image-rendering: pixelated;
+}
+
+.tutorial-modal h2 {
+  margin: 0 0 28px;
+  text-align: center;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+}
+
+.tutorial-steps {
+  display: grid;
+  gap: 16px;
+  margin: 0;
+  padding-left: 28px;
+  color: #cfcfcf;
+  line-height: 1.6;
+}
+
+.tutorial-steps li::marker {
+  color: #ff3158;
+  font-weight: 700;
+}
+
+.tutorial-steps strong {
+  color: #ffffff;
+}
+
+.tutorial-modal__preference {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 28px;
+  color: #bdbdbd;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.tutorial-modal__preference input {
+  width: 18px;
+  height: 18px;
+  accent-color: #ff3158;
+}
+
+.tutorial-modal__start {
+  display: block;
+  width: 100%;
+  margin-top: 24px;
+  padding: 14px 20px;
+  color: #ff3158;
+  background-color: #0a0a0f;
+  border: 2px solid #ff3158;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.tutorial-modal__start:hover {
+  color: #ffffff;
+  background-color: #ff3158;
+}
+
+.tutorial-modal__start:focus-visible,
+.tutorial-modal__close:focus-visible {
+  outline: 3px solid rgba(255, 49, 88, 0.5);
+  outline-offset: 3px;
+}
+
 @media (max-width: 600px) {
 
   .attempt-slot__result {
@@ -520,13 +664,39 @@
   }
 
   .music-game__topbar {
-    grid-template-columns: auto 1fr;
+    grid-template-columns: auto 1fr auto;
     gap: 20px;
   }
 
   .music-game__logo {
-    justify-self: end;
-    width: min(220px, 55vw);
+    justify-self: center;
+    width: min(200px, 48vw);
+  }
+
+   .tutorial-button {
+    width: 38px;
+    height: 38px;
+    font-size: 1rem;
+  }
+
+  .tutorial-overlay {
+    padding: 14px;
+  }
+
+  .tutorial-modal {
+    max-height: calc(100vh - 28px);
+    padding: 34px 22px 24px;
+  }
+
+  .tutorial-modal h2 {
+    margin-bottom: 22px;
+    font-size: 1.2rem;
+  }
+
+  .tutorial-steps {
+    gap: 12px;
+    padding-left: 22px;
+    font-size: 0.85rem;
   }
 
   .attempt-slot {

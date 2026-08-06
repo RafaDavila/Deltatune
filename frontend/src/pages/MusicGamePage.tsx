@@ -3,6 +3,7 @@ import deltatuneLogo from "../assets/deltatune-logo.png";
 import heartIcon from "../assets/heart.png";
 import { useEffect, useRef, useState, type SubmitEvent } from "react";
 import testSongAudio from "../assets/audio/BIG SHOT.mp3";
+import TutorialModal from "../components/TutorialModal";
 
 const attemptDurations = [0.5, 1, 2, 4, 8, 16];
 const dailySongTitle = "BIG SHOT";
@@ -24,11 +25,17 @@ type AttemptResult = {
 
 function MusicGamePage() {
   const [guess, setGuess] = useState("");
+  const [isTutorialOpen, setIsTutorialOpen] = useState(() => {
+  return (
+    localStorage.getItem("deltatune-hide-tutorial") !== "true"
+  );
+});
   const audioRef = useRef<HTMLAudioElement>(null);
   const stopTimerRef = 
           useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [attemptResults, setAttemptResults] = useState<AttemptResult[]>([]);
+
   useEffect(() => {
     const audio = audioRef.current;
 
@@ -137,6 +144,17 @@ function MusicGamePage() {
     setGuess("");
   }
 
+function handleCloseTutorial(dontShowAgain: boolean) {
+  if (dontShowAgain) {
+    localStorage.setItem(
+      "deltatune-hide-tutorial",
+      "true",
+    );
+  }
+
+  setIsTutorialOpen(false);
+}
+
   return (
     <main className="music-game">
       <header className="music-game__topbar">
@@ -149,6 +167,16 @@ function MusicGamePage() {
           src={deltatuneLogo}
           alt="Deltatune"
         />
+
+        <button
+          className="tutorial-button"
+          type="button"
+          aria-label="Abrir tutorial"
+          onClick={() => setIsTutorialOpen(true)}
+          >
+            ?
+        </button>
+        
       </header>
 
       <section className="music-panel">
@@ -291,6 +319,9 @@ function MusicGamePage() {
         </form>
 
       </section>
+      {isTutorialOpen && (
+        <TutorialModal onClose={handleCloseTutorial} />
+    )}
     </main>
   );
 }
