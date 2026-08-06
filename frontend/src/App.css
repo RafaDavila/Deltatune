@@ -358,7 +358,101 @@
   outline-offset: 6px;
 }
 
+.guess-form {
+  margin-top: 36px;
+}
+
+.guess-form__label {
+  display: block;
+  margin-bottom: 10px;
+  color: #cfcfcf;
+  font-size: 0.85rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.guess-form__controls {
+  display:grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 10px;
+}
+
+.guess-form input {
+  min-width: 0;
+  padding: 14px 16px;
+  color: #ffffff;
+  background-color: #0a0a0f;
+  border: 2px solid #44444e;
+  font: inherit;
+}
+
+.guess-form input::placeholder {
+  color: #777780;
+}
+
+.guess-form input:focus-visible {
+  border-color: #ff3158;
+  outline: 3px solid rgba(255, 49, 88, 0.3);
+  outline-offset: 2px;
+}
+
+.guess-button {
+  padding: 14px 20px;
+  color: #ffffff;
+  background-color: #101016;
+  border: 2px solid #555560;
+  cursor: pointer;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.guess-button--skip:hover {
+  border-color: #ffffff;
+}
+
+.guess-button--confirm {
+  color: #ff3158;
+  border-color: #ff3158;
+}
+
+.guess-button--confirm:hover {
+  color: #ffffff;
+  background-color: #ff3158;
+}
+
+.guess-button:focus-visible {
+  outline: 3px solid rgba(255, 49, 88, 0.4);
+  outline-offset: 3px;
+}
+
+.lives__heart--lost {
+  opacity: 0.18;
+  filter: grayscale(1);
+}
+
+.guess-button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.attempt-slot__result {
+  min-width: 0;
+  padding: 0 18px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.attempt-slot__result--skipped {
+  color: #777780
+}
+
 @media (max-width: 600px) {
+
+  .attempt-slot__result {
+    padding: 0 10px;
+    font-size: 0.75rem;
+  }
 
   .music-panel {
   margin-top: 46px;
@@ -385,6 +479,20 @@
   .attempt-slot__duration {
     grid-column: 3;
     padding-right: 10px;
+    font-size: 0.8rem;
+  }
+
+
+  .guess-form__controls {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .guess-form input {
+    grid-column: 1 / -1;
+  }
+
+  .guess-button {
+    padding: 13px 10px;
     font-size: 0.8rem;
   }
 }
