@@ -447,6 +447,19 @@
   color: #777780
 }
 
+.attempt-slot__result--skipped {
+  color: #8d8d8d;
+}
+
+.attempt-slot__result--wrong {
+  color :#ff3158;
+}
+
+.attempt-slot__result--correct {
+  color: #58e879;
+  font-weight: 700;
+}
+
 @media (max-width: 600px) {
 
   .attempt-slot__result {

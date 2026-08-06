@@ -1,9 +1,20 @@
 import { Link } from "react-router";
 import deltatuneLogo from "../assets/deltatune-logo.png";
 import heartIcon from "../assets/heart.png";
-import { useState } from "react";
+import { useState, type SubmitEvent } from "react";
 
 const attemptDurations = [0.5, 1, 2, 4, 8, 16];
+const dailySongTitle = "Rude Buster";
+const songTitles = [
+  "Rude Buster",
+  "Field of Hopes and Dreams",
+  "Scarlet Forest",
+  "The World Revolving",
+  "A Cyber's World?",
+  "Smart Race",
+  "Attack of the Killer Queen",
+  "BIG SHOT",
+];
 
 type AttemptResult = {
   answer: string;
@@ -13,14 +24,19 @@ type AttemptResult = {
 function MusicGamePage() {
   const [guess, setGuess] = useState("");
   const [attemptResults, setAttemptResults] = useState<AttemptResult[]>([]);
-  const attemptsUsed = attemptResults.length;
+  const failedAttempts = attemptResults.filter(
+    (result) => result.status !== "correct",
+  ).length;
   const currentAttempt = Math.min (
-    attemptsUsed,
+    failedAttempts,
     attemptDurations.length -1,
   );
 
-  const remainingLives = attemptDurations.length - attemptsUsed;
-  const gameFinished = attemptsUsed === attemptDurations.length;
+  const remainingLives = attemptDurations.length - failedAttempts;
+  const hasWon = attemptResults.some(
+    (result) => result.status === "correct",
+  );
+  const gameFinished = hasWon || failedAttempts === attemptDurations.length;
   function handleSkip() {
     if (gameFinished) {
       return;
@@ -34,6 +50,28 @@ function MusicGamePage() {
     ]);
     setGuess("")
   }
+  function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const cleanedGuess = guess.trim();
+
+    if (gameFinished || !cleanedGuess) {
+      return;
+    }
+    const isCorrect = 
+      cleanedGuess.toLocaleLowerCase() ===
+      dailySongTitle.toLocaleLowerCase();
+
+    setAttemptResults((previousResults) => [
+      ...previousResults,
+      {
+        answer: cleanedGuess,
+        status: isCorrect ? "correct" : "wrong",
+      },
+    ]);
+    setGuess("");
+  }
+
   return (
     <main className="music-game">
       <header className="music-game__topbar">
@@ -92,9 +130,9 @@ function MusicGamePage() {
               </span>
               <span
                 className={
-                  attemptResults[index]?.status === "skipped"
-                  ? "attempt-slot__result attempt-slot__result--skipped"
-                  : "attempt-slot__result"
+                  `attempt-slot__result attempt-slot__result--${
+                    attemptResults[index]?.status ?? "empty"
+                  }`
                 }
               >
                 {attemptResults[index]?.answer ?? ""}
@@ -144,7 +182,7 @@ function MusicGamePage() {
           </button>
         </section>
 
-        <form className="guess-form" onSubmit={(e) => e.preventDefault()}>
+        <form className="guess-form" onSubmit={handleSubmit}>
           <label className="guess-form__label" htmlFor="song-guess">
             Qual é a música?
           </label>
@@ -153,17 +191,24 @@ function MusicGamePage() {
               id="song-guess"
               name="song-guess"
               type="text"
+              list="song-options"
               placeholder="Digite o nome da música..."
               autoComplete="off"
               value={guess}
               onChange={(event) => setGuess(event.target.value)}
+              disabled={gameFinished}
 
             />
+            <datalist id="song-options">
+              {songTitles.map((songTitle) => (
+                <option key={songTitle} value={songTitle} />
+              ))}
+            </datalist>
             <button className="guess-button guess-button--skip" type="button" onClick={handleSkip} disabled={gameFinished}>
               Pular
             </button>
 
-            <button className="guess-button guess-button--confirm" type="submit">
+            <button className="guess-button guess-button--confirm" type="submit" disabled={gameFinished}>
               Confirmar
             </button>
 
