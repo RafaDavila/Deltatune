@@ -28,7 +28,7 @@
 }
 
 .home__header p {
-  margin-top: 18px;
+  margin-top: 32px;
   color: #cfcfcf;
   font-size: 1.1rem;
   letter-spacing: 2px;
@@ -159,6 +159,11 @@
   width: min(280px, 50vw);
   height: auto;
   image-rendering: pixelated;
+}
+
+.music-panel {
+  width: min(920px, 100%);
+  margin: 30px auto 0;
 }
 
 .music-panel__heading {
@@ -325,6 +330,11 @@
 }
 
 @media (max-width: 600px) {
+
+  .music-panel {
+  margin-top: 46px;
+  }
+  
   .music-game {
     padding: 22px 14px 48px;
   }
