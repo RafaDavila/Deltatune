@@ -141,7 +141,7 @@
     padding: 20px;
   }
 
-  .game-card > div {
+  .game-card>div {
     min-width: 0;
   }
 
@@ -372,7 +372,7 @@
 }
 
 .guess-form__controls {
-  display:grid;
+  display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;
   gap: 10px;
 }
@@ -448,7 +448,7 @@
 }
 
 .attempt-slot__result--wrong {
-  color :#ff3158;
+  color: #ff3158;
 }
 
 .attempt-slot__result--correct {
@@ -460,10 +460,10 @@
   color: #58e879;
   background-color: rgba(88, 232, 121, 0.08);
   border-color: #58e879;
-  box-shadow: 
-      0 0 0 1px rgba(88, 232, 121, 0.25),
-      0 0 18px rgba(88, 232, 121, 0.18);
-    animation: correct-shake 450ms ease-in-out;
+  box-shadow:
+    0 0 0 1px rgba(88, 232, 121, 0.25),
+    0 0 18px rgba(88, 232, 121, 0.18);
+  animation: correct-shake 450ms ease-in-out;
 }
 
 .attempt-slot--correct .attempt-slot__number {
@@ -476,8 +476,9 @@
 }
 
 @keyframes correct-shake {
+
   0%,
-  100%{ 
+  100% {
     transform: translateX(0);
   }
 
@@ -756,7 +757,40 @@
   }
 }
 
+.volume-control {
+  display: grid;
+  grid-template-columns: 24px minmax(120px, 240px) 48px;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 22px;
+}
+
+.volume-control__icon {
+  display: grid;
+  color: #ff3158;
+  font-size: 1.2rem;
+  place-items: center;
+}
+
+.volume-control input {
+  width: 100%;
+  cursor: pointer;
+  accent-color: #ff3158;
+}
+
+.volume-control strong {
+  color: #cfcfcf;
+  font-size: 0.75rem;
+  text-align: right;
+}
+
 @media (max-width: 600px) {
+
+  .volume-control {
+    grid-template-columns: 22px minmax(100px, 1fr) 42px;
+    gap: 9px;
+  }
 
   .attempt-slot__result {
     padding: 0 10px;
@@ -764,7 +798,7 @@
   }
 
   .music-panel {
-  margin-top: 46px;
+    margin-top: 46px;
   }
 
   .music-game {
@@ -781,7 +815,7 @@
     width: min(200px, 48vw);
   }
 
-   .tutorial-button {
+  .tutorial-button {
     width: 38px;
     height: 38px;
     font-size: 1rem;

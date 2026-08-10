@@ -1,10 +1,11 @@
+import { useEffect, useRef, useState, type SubmitEvent } from "react";
+import { FaVolumeHigh, FaVolumeXmark } from "react-icons/fa6";
 import { Link } from "react-router";
+import testSongAudio from "../assets/audio/BIG SHOT.mp3";
 import deltatuneLogo from "../assets/deltatune-logo.png";
 import heartIcon from "../assets/heart.png";
-import { useEffect, useRef, useState, type SubmitEvent } from "react";
-import testSongAudio from "../assets/audio/BIG SHOT.mp3";
-import TutorialModal from "../components/TutorialModal";
 import SiteFooter from "../components/SiteFooter";
+import TutorialModal from "../components/TutorialModal";
 
 const attemptDurations = [0.5, 1, 2, 4, 8, 16];
 const dailySongTitle = "BIG SHOT";
@@ -22,107 +23,113 @@ const songTitles = [
 type AttemptResult = {
   answer: string;
   status: "skipped" | "wrong" | "correct";
-}
+};
 
 function MusicGamePage() {
   const [guess, setGuess] = useState("");
-  const [isTutorialOpen, setIsTutorialOpen] = useState(() => {
-  return (
-    localStorage.getItem("deltatune-hide-tutorial") !== "true"
+  const [isTutorialOpen, setIsTutorialOpen] = useState(
+    () => localStorage.getItem("deltatune-hide-tutorial") !== "true",
   );
-});
-  const audioRef = useRef<HTMLAudioElement>(null);
-  const stopTimerRef = 
-          useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [volume, setVolume] = useState(() => {
+    const savedVolume = localStorage.getItem("deltatune-volume");
+
+    if (savedVolume === null) {
+      return 0.6;
+    }
+
+    const parsedVolume = Number(savedVolume);
+    return Number.isFinite(parsedVolume)
+      ? Math.min(1, Math.max(0, parsedVolume))
+      : 0.6;
+  });
   const [isPlaying, setIsPlaying] = useState(false);
   const [attemptResults, setAttemptResults] = useState<AttemptResult[]>([]);
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const stopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const failedAttempts = attemptResults.filter(
+    (result) => result.status !== "correct",
+  ).length;
+  const currentAttempt = Math.min(failedAttempts, attemptDurations.length - 1);
+  const remainingLives = attemptDurations.length - failedAttempts;
+  const hasWon = attemptResults.some((result) => result.status === "correct");
+  const gameFinished = hasWon || failedAttempts === attemptDurations.length;
+  const maximumDuration = attemptDurations[attemptDurations.length - 1];
+  const unlockedDuration = gameFinished
+    ? maximumDuration
+    : attemptDurations[currentAttempt];
+
+  function stopAudio() {
+    if (stopTimerRef.current) {
+      clearTimeout(stopTimerRef.current);
+      stopTimerRef.current = null;
+    }
+
+    const audio = audioRef.current;
+
+    if (audio) {
+      audio.pause();
+      audio.currentTime = 0;
+    }
+
+    setIsPlaying(false);
+  }
+
+  useEffect(() => {
+    const audio = audioRef.current;
+
+    if (audio) {
+      audio.volume = volume;
+    }
+
+    localStorage.setItem("deltatune-volume", volume.toString());
+  }, [volume]);
 
   useEffect(() => {
     const audio = audioRef.current;
 
     return () => {
-      if (stopTimerRef.current){
+      if (stopTimerRef.current) {
         clearTimeout(stopTimerRef.current);
       }
+
       audio?.pause();
-    }
-  }, [])
-  const failedAttempts = attemptResults.filter(
-    (result) => result.status !== "correct",
-  ).length;
-  const currentAttempt = Math.min (
-    failedAttempts,
-    attemptDurations.length -1,
-  );
-
-  const remainingLives = attemptDurations.length - failedAttempts;
-  const hasWon = attemptResults.some(
-    (result) => result.status === "correct",
-  );
-  const gameFinished = hasWon || failedAttempts === attemptDurations.length;
-  const maximumDuration =
-    attemptDurations[attemptDurations.length - 1];
-  
-  const unlockedDuration = gameFinished
-    ? maximumDuration
-    : attemptDurations[currentAttempt];
-  function stopAudio() {
-  if (stopTimerRef.current) {
-    clearTimeout(stopTimerRef.current);
-    stopTimerRef.current = null;
-  }
-
-  const audio = audioRef.current;
-
-  if (audio) {
-    audio.pause();
-    audio.currentTime = 0;
-  }
-
-  setIsPlaying(false);
-}
+    };
+  }, []);
 
   async function handlePlay() {
-  const audio = audioRef.current;
+    const audio = audioRef.current;
 
-  if (!audio) {
-    return;
-  }
+    if (!audio) {
+      return;
+    }
 
-  stopAudio();
-
-  try {
-    await audio.play();
-    setIsPlaying(true);
-
-    const clipDuration =
-      unlockedDuration * 1000;
-
-    stopTimerRef.current = setTimeout(
-      stopAudio,
-      clipDuration,
-    );
-  } catch (error) {
-    console.error("Não foi possível reproduzir o áudio:", error);
     stopAudio();
+
+    try {
+      await audio.play();
+      setIsPlaying(true);
+      stopTimerRef.current = setTimeout(stopAudio, unlockedDuration * 1000);
+    } catch (error) {
+      console.error("Não foi possível reproduzir o áudio:", error);
+      stopAudio();
+    }
   }
-}
 
   function handleSkip() {
     if (gameFinished) {
       return;
     }
+
     stopAudio();
     setAttemptResults((previousResults) => [
       ...previousResults,
-      {
-        answer: "Pulou",
-        status: "skipped",
-      },
+      { answer: "Pulou", status: "skipped" },
     ]);
-    setGuess("")
+    setGuess("");
   }
-  function handleSubmit(event: SubmitEvent<HTMLFormElement>,) {
+
+  function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const cleanedGuess = guess.trim();
@@ -130,54 +137,43 @@ function MusicGamePage() {
     if (gameFinished || !cleanedGuess) {
       return;
     }
+
     stopAudio();
-    const isCorrect = 
-      cleanedGuess.toLocaleLowerCase() ===
-      dailySongTitle.toLocaleLowerCase();
+    const isCorrect =
+      cleanedGuess.toLocaleLowerCase() === dailySongTitle.toLocaleLowerCase();
 
     setAttemptResults((previousResults) => [
       ...previousResults,
-      {
-        answer: cleanedGuess,
-        status: isCorrect ? "correct" : "wrong",
-      },
+      { answer: cleanedGuess, status: isCorrect ? "correct" : "wrong" },
     ]);
     setGuess("");
   }
 
-function handleCloseTutorial(dontShowAgain: boolean) {
-  if (dontShowAgain) {
-    localStorage.setItem(
-      "deltatune-hide-tutorial",
-      "true",
-    );
-  }
+  function handleCloseTutorial(dontShowAgain: boolean) {
+    if (dontShowAgain) {
+      localStorage.setItem("deltatune-hide-tutorial", "true");
+    }
 
-  setIsTutorialOpen(false);
-}
+    setIsTutorialOpen(false);
+  }
 
   return (
     <main className="music-game">
       <header className="music-game__topbar">
         <Link className="back-link" to="/">
           ← Voltar
-        </Link> 
+        </Link>
 
-        <img
-          className="music-game__logo"
-          src={deltatuneLogo}
-          alt="Deltatune"
-        />
+        <img className="music-game__logo" src={deltatuneLogo} alt="Deltatune" />
 
         <button
           className="tutorial-button"
           type="button"
           aria-label="Abrir tutorial"
           onClick={() => setIsTutorialOpen(true)}
-          >
-            ?
+        >
+          ?
         </button>
-        
       </header>
 
       <section className="music-panel">
@@ -185,10 +181,7 @@ function handleCloseTutorial(dontShowAgain: boolean) {
           <p>Escute o trecho e descubra qual música está tocando.</p>
         </div>
 
-        <div
-          className="daily-challenge"
-          aria-label="Música do dia número 1"
-        >
+        <div className="daily-challenge" aria-label="Música do dia número 1">
           <span>Música do dia</span>
           <strong>#001</strong>
         </div>
@@ -196,15 +189,15 @@ function handleCloseTutorial(dontShowAgain: boolean) {
         <div className="lives">
           <div
             className="lives__hearts"
-            aria-label= {`${remainingLives} de 6 tentativas restantes`}
+            aria-label={`${remainingLives} de 6 tentativas restantes`}
           >
             {attemptDurations.map((duration, index) => (
               <img
                 key={duration}
-                className= {
+                className={
                   index >= remainingLives
-                  ? "lives__heart lives__heart--lost"
-                  : "lives__heart"
+                    ? "lives__heart lives__heart--lost"
+                    : "lives__heart"
                 }
                 src={heartIcon}
                 alt=""
@@ -218,23 +211,20 @@ function handleCloseTutorial(dontShowAgain: boolean) {
 
         <div className="attempt-list">
           {attemptDurations.map((duration, index) => (
-            <div className={`attempt-slot attempt-slot--${
-                    attemptResults[index]?.status ?? "empty"
-            }`}
-             key={duration}>
-              <span className="attempt-slot__number">
-                {index + 1}
-              </span>
+            <div
+              key={duration}
+              className={`attempt-slot attempt-slot--${
+                attemptResults[index]?.status ?? "empty"
+              }`}
+            >
+              <span className="attempt-slot__number">{index + 1}</span>
               <span
-                className={
-                  `attempt-slot__result attempt-slot__result--${
-                    attemptResults[index]?.status ?? "empty"
-                  }`
-                }
+                className={`attempt-slot__result attempt-slot__result--${
+                  attemptResults[index]?.status ?? "empty"
+                }`}
               >
                 {attemptResults[index]?.answer ?? ""}
               </span>
-
               <span className="attempt-slot__duration">
                 {duration.toString().replace(".", ",")}s
               </span>
@@ -242,25 +232,17 @@ function handleCloseTutorial(dontShowAgain: boolean) {
           ))}
         </div>
 
-        <section className="audio-player" >
-          <audio
-            ref={audioRef}
-            src={testSongAudio}
-            preload="auto"
-            onEnded={stopAudio}
-            />
+        <section className="audio-player">
+          <audio ref={audioRef} src={testSongAudio} preload="auto" onEnded={stopAudio} />
+
           <div className="audio-player__info">
             <span>Trecho liberado</span>
             <strong>
-              {unlockedDuration.toString().replace(".",",")}{" "}
-              {unlockedDuration <= 1 ? "segundo" : "segundos"}
+              {unlockedDuration.toString().replace(".", ",")} {unlockedDuration <= 1 ? "segundo" : "segundos"}
             </strong>
           </div>
 
-          <div
-            className="audio-timeline"
-            aria-label="Primeiro trecho de seis liberado"
-          >
+          <div className="audio-timeline" aria-label="Primeiro trecho de seis liberado">
             {attemptDurations.map((duration, index) => (
               <span
                 key={duration}
@@ -280,10 +262,25 @@ function handleCloseTutorial(dontShowAgain: boolean) {
             onClick={handlePlay}
           >
             <img src={heartIcon} alt="" aria-hidden="true" />
-            <span>
-              {isPlaying? "Tocando..." : "Reproduzir"}
-            </span>
+            <span>{isPlaying ? "Tocando..." : "Reproduzir"}</span>
           </button>
+
+          <label className="volume-control">
+            <span className="volume-control__icon" aria-hidden="true">
+              {volume === 0 ? <FaVolumeXmark /> : <FaVolumeHigh />}
+            </span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.05"
+              value={volume}
+              aria-label="Volume do áudio"
+              aria-valuetext={`${Math.round(volume * 100)}%`}
+              onChange={(event) => setVolume(Number(event.target.value))}
+            />
+            <strong>{Math.round(volume * 100)}%</strong>
+          </label>
         </section>
 
         <form className="guess-form" onSubmit={handleSubmit}>
@@ -301,34 +298,34 @@ function handleCloseTutorial(dontShowAgain: boolean) {
               value={guess}
               onChange={(event) => setGuess(event.target.value)}
               disabled={gameFinished}
-
             />
             <datalist id="song-options">
               {songTitles.map((songTitle) => (
                 <option key={songTitle} value={songTitle} />
               ))}
             </datalist>
-            <button className="guess-button guess-button--skip" type="button" onClick={handleSkip} disabled={gameFinished}>
+            <button
+              className="guess-button guess-button--skip"
+              type="button"
+              onClick={handleSkip}
+              disabled={gameFinished}
+            >
               Pular
             </button>
-
-            <button className="guess-button guess-button--confirm" type="submit" disabled={gameFinished}>
+            <button
+              className="guess-button guess-button--confirm"
+              type="submit"
+              disabled={gameFinished}
+            >
               Confirmar
             </button>
-
           </div>
         </form>
 
         <SiteFooter />
-
-        {isTutorialOpen && (
-          <TutorialModal onClose={handleCloseTutorial} />
-        )}
-
       </section>
-      {isTutorialOpen && (
-        <TutorialModal onClose={handleCloseTutorial} />
-    )}
+
+      {isTutorialOpen && <TutorialModal onClose={handleCloseTutorial} />}
     </main>
   );
 }
