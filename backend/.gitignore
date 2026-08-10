@@ -1,0 +1,20 @@
+# Ambiente virtual
+.venv/
+
+# Variáveis de ambiente
+.env
+
+# Cache do Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Testes e cobertura
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Ferramentas
+.mypy_cache/
+.vscode/
