@@ -21,10 +21,53 @@ const songTitles = [
   "BIG SHOT",
 ];
 
+const dailyChallengeId = "001";
+
+const gameStorageKey =
+  `deltatune-game-${dailyChallengeId}`;
+
 type AttemptResult = {
   answer: string;
   status: "skipped" | "wrong" | "correct";
 };
+
+function loadSavedAttemptResults(): AttemptResult[] {
+  const savedGame = localStorage.getItem(gameStorageKey);
+
+  if (!savedGame) {
+    return [];
+  }
+
+  try {
+    const parsedGame: unknown = JSON.parse(savedGame);
+
+    if (!Array.isArray(parsedGame)) {
+      return [];
+    }
+
+    return parsedGame
+      .filter((item): item is AttemptResult => {
+        if (typeof item !== "object" || item === null) {
+          return false;
+        }
+
+        const attempt = item as Record<string, unknown>;
+
+        const validStatus =
+          attempt.status === "skipped" ||
+          attempt.status === "wrong" ||
+          attempt.status === "correct";
+
+        return (
+          typeof attempt.answer === "string" &&
+          validStatus
+        );
+      })
+      .slice(0, attemptDurations.length);
+  } catch {
+    return [];
+  }
+}
 
 function MusicGamePage() {
   const [guess, setGuess] = useState("");
@@ -50,7 +93,7 @@ function MusicGamePage() {
 
   const [activeSuggestionIndex, setActiveSuggestionIndex] =
     useState(-1);
-  const [attemptResults, setAttemptResults] = useState<AttemptResult[]>([]);
+  const [attemptResults, setAttemptResults] = useState<AttemptResult[]>(loadSavedAttemptResults);
   const audioRef = useRef<HTMLAudioElement>(null);
   const stopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -86,6 +129,7 @@ function MusicGamePage() {
       return;
     }
     const resultTimer = setTimeout(() => {
+      setIsTutorialOpen(false);
       setIsResultOpen(true);
     }, 650);
     return () => {
@@ -148,6 +192,13 @@ function MusicGamePage() {
       stopAudio();
     }
   }
+
+  useEffect(() => {
+    localStorage.setItem(
+      gameStorageKey,
+      JSON.stringify(attemptResults),
+    );
+  }, [attemptResults]);
 
   function handleGuessChange(
     event: ChangeEvent<HTMLInputElement>,
@@ -282,7 +333,7 @@ function MusicGamePage() {
 
         <div className="daily-challenge" aria-label="Música do dia número 1">
           <span>Música do dia</span>
-          <strong>#001</strong>
+          <strong>#{dailyChallengeId}</strong>
         </div>
 
         <div className="lives">
@@ -399,8 +450,8 @@ function MusicGamePage() {
               aria-controls="song-suggestions"
               aria-activedescendant={
                 activeSuggestionIndex >= 0
-                ? `song-suggestion-${activeSuggestionIndex}`
-                : undefined
+                  ? `song-suggestion-${activeSuggestionIndex}`
+                  : undefined
               }
               onChange={handleGuessChange}
               onKeyDown={handleGuessKeyDown}
@@ -414,46 +465,45 @@ function MusicGamePage() {
 
             {showSuggestions && (
               <ul
-              className="song-suggestions"
-              id="song-suggestions"
-              role="listbox"
+                className="song-suggestions"
+                id="song-suggestions"
+                role="listbox"
               >
-              {filteredSongs.length > 0 ? (
-                filteredSongs.map((songTitle, index) => (
-                  <li
-                  id={`song-suggestion-${index}`}
-                  key={songTitle}
-                  role="option"
-                  aria-selected = {
-                    index === activeSuggestionIndex
-                  }
-                  >
-                    <button
-                    className={`song-suggestions__option ${
-                      index === activeSuggestionIndex
-                      ? "song-suggestions__option--active"
-                      : ""
-                    }`}
-                    type="button"
-                    onPointerDown={(event) => {
-                      event.preventDefault();
-                      handleSelectSong(songTitle);
-                    }}
-                    onClick={() =>
-                      handleSelectSong(songTitle)
-                    }
+                {filteredSongs.length > 0 ? (
+                  filteredSongs.map((songTitle, index) => (
+                    <li
+                      id={`song-suggestion-${index}`}
+                      key={songTitle}
+                      role="option"
+                      aria-selected={
+                        index === activeSuggestionIndex
+                      }
                     >
-                      {songTitle}
+                      <button
+                        className={`song-suggestions__option ${index === activeSuggestionIndex
+                          ? "song-suggestions__option--active"
+                          : ""
+                          }`}
+                        type="button"
+                        onPointerDown={(event) => {
+                          event.preventDefault();
+                          handleSelectSong(songTitle);
+                        }}
+                        onClick={() =>
+                          handleSelectSong(songTitle)
+                        }
+                      >
+                        {songTitle}
 
-                    </button>
+                      </button>
 
+                    </li>
+                  ))
+                ) : (
+                  <li className="song-suggestions__empty">
+                    Nenhuma música encontrada
                   </li>
-                ))
-              ): (
-                <li className="song-suggestions__empty">
-                  Nenhuma música encontrada
-                </li>
-              )}
+                )}
 
               </ul>
             )}

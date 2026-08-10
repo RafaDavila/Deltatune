@@ -91,11 +91,8 @@ function InfoModal({ onClose }: InfoModalProps) {
             <h3>Privacidade</h3>
 
             <p>
-              Atualmente, o projeto não utiliza contas,
-              cookies ou coleta de dados pessoais. O
-              localStorage do navegador é usado apenas para
-              guardar preferências locais, como a exibição
-              do tutorial.
+              O localStorage do navegador é usado apenas para
+              guardar preferências locais e o progresso da partida.
             </p>
           </section>
         </div>
