@@ -7,9 +7,16 @@ import heartIcon from "../assets/heart.png";
 import SiteFooter from "../components/SiteFooter";
 import TutorialModal from "../components/TutorialModal";
 import ResultModal from "../components/ResultModal";
+import { getDailyChallenge, submitDailyGuess, type DailyChallengeResponse, } from "../services/deltatuneApi";
 
-const attemptDurations = [0.5, 1, 2, 4, 8, 16];
-const dailySongTitle = "BIG SHOT";
+const DEFAULT_ATTEMPT_DURATIONS = [
+  0.5,
+  1,
+  2,
+  4,
+  8,
+  16,
+];
 const songTitles = [
   "Rude Buster",
   "Field of Hopes and Dreams",
@@ -21,17 +28,17 @@ const songTitles = [
   "BIG SHOT",
 ];
 
-const dailyChallengeId = "001";
-
-const gameStorageKey =
-  `deltatune-game-${dailyChallengeId}`;
-
 type AttemptResult = {
   answer: string;
   status: "skipped" | "wrong" | "correct";
 };
 
-function loadSavedAttemptResults(): AttemptResult[] {
+function loadSavedAttemptResults(
+  challengeId: string,
+  maximumAttempts: number,
+): AttemptResult[] {
+  const gameStorageKey = `deltatune-game-${challengeId}`;
+
   const savedGame = localStorage.getItem(gameStorageKey);
 
   if (!savedGame) {
@@ -63,13 +70,26 @@ function loadSavedAttemptResults(): AttemptResult[] {
           validStatus
         );
       })
-      .slice(0, attemptDurations.length);
+      .slice(0, maximumAttempts);
   } catch {
     return [];
   }
 }
 
 function MusicGamePage() {
+  const [isChallengeLoading, setIsChallengeLoading] =
+    useState(true);
+
+  const [isProgressLoaded, setIsProgressLoaded] =
+    useState(false);
+
+  const [isSubmittingGuess, setIsSubmittingGuess] =
+    useState(false);
+
+  const [guessError, setGuessError] =
+    useState<string | null>(null);
+  const [dailyChallenge, setDailyChallenge] = useState<DailyChallengeResponse | null>(null);
+  const [challengeError, setChallengeError] = useState<string | null>(null);
   const [guess, setGuess] = useState("");
   const [isResultOpen, setIsResultOpen] = useState(false);
   const [isTutorialOpen, setIsTutorialOpen] = useState(
@@ -93,10 +113,18 @@ function MusicGamePage() {
 
   const [activeSuggestionIndex, setActiveSuggestionIndex] =
     useState(-1);
-  const [attemptResults, setAttemptResults] = useState<AttemptResult[]>(loadSavedAttemptResults);
+  const [attemptResults, setAttemptResults] = useState<AttemptResult[]>([]);
   const audioRef = useRef<HTMLAudioElement>(null);
   const stopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const attemptDurations =
+    dailyChallenge?.attemptDurations ??
+    DEFAULT_ATTEMPT_DURATIONS;
 
+  const isGameUnavailable =
+    isChallengeLoading ||
+    !isProgressLoaded ||
+    !dailyChallenge ||
+    Boolean(challengeError);
   const failedAttempts = attemptResults.filter(
     (result) => result.status !== "correct",
   ).length;
@@ -104,6 +132,10 @@ function MusicGamePage() {
   const remainingLives = attemptDurations.length - failedAttempts;
   const hasWon = attemptResults.some((result) => result.status === "correct");
   const gameFinished = hasWon || failedAttempts === attemptDurations.length;
+  const revealedSongTitle =
+    attemptResults.find(
+      (result) => result.status === "correct",
+    )?.answer ?? null;
   const normalizedGuess = guess.trim().toLocaleLowerCase();
 
   const filteredSongs = normalizedGuess
@@ -177,7 +209,7 @@ function MusicGamePage() {
   async function handlePlay() {
     const audio = audioRef.current;
 
-    if (!audio) {
+    if (!audio || isGameUnavailable) {
       return;
     }
 
@@ -194,11 +226,76 @@ function MusicGamePage() {
   }
 
   useEffect(() => {
+    if (!dailyChallenge || !isProgressLoaded) {
+      return;
+    }
+
+    const gameStorageKey =
+      `deltatune-game-${dailyChallenge.challengeId}`;
+
     localStorage.setItem(
       gameStorageKey,
       JSON.stringify(attemptResults),
     );
-  }, [attemptResults]);
+  }, [
+    attemptResults,
+    dailyChallenge,
+    isProgressLoaded,
+  ]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadDailyChallenge() {
+      setIsChallengeLoading(true);
+      setIsProgressLoaded(false);
+
+      try {
+        const challenge =
+          await getDailyChallenge();
+
+        if (cancelled) {
+          return;
+        }
+
+        const savedResults =
+          loadSavedAttemptResults(
+            challenge.challengeId,
+            challenge.attemptDurations.length,
+          );
+
+        setDailyChallenge(challenge);
+        setAttemptResults(savedResults);
+        setChallengeError(null);
+        setIsProgressLoaded(true);
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+
+        console.error(
+          "Erro ao carregar desafio diário:",
+          error,
+        );
+
+        setDailyChallenge(null);
+        setAttemptResults([]);
+        setChallengeError(
+          "Não foi possível carregar o desafio diário.",
+        );
+      } finally {
+        if (!cancelled) {
+          setIsChallengeLoading(false);
+        }
+      }
+    }
+
+    loadDailyChallenge();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   function handleGuessChange(
     event: ChangeEvent<HTMLInputElement>,
@@ -263,7 +360,11 @@ function MusicGamePage() {
   }
 
   function handleSkip() {
-    if (gameFinished) {
+    if (
+      gameFinished ||
+      isGameUnavailable ||
+      isSubmittingGuess
+    ) {
       return;
     }
 
@@ -277,26 +378,62 @@ function MusicGamePage() {
     setGuess("");
   }
 
-  function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
+  async function handleSubmit(
+    event: SubmitEvent<HTMLFormElement>,
+  ) {
     event.preventDefault();
+
     setIsSuggestionsOpen(false);
     setActiveSuggestionIndex(-1);
 
     const cleanedGuess = guess.trim();
 
-    if (gameFinished || !cleanedGuess) {
+    if (
+      gameFinished ||
+      isGameUnavailable ||
+      isSubmittingGuess ||
+      !dailyChallenge ||
+      !cleanedGuess
+    ) {
       return;
     }
 
     stopAudio();
-    const isCorrect =
-      cleanedGuess.toLocaleLowerCase() === dailySongTitle.toLocaleLowerCase();
+    setIsSubmittingGuess(true);
+    setGuessError(null);
 
-    setAttemptResults((previousResults) => [
-      ...previousResults,
-      { answer: cleanedGuess, status: isCorrect ? "correct" : "wrong" },
-    ]);
-    setGuess("");
+    try {
+      const result = await submitDailyGuess(
+        dailyChallenge.challengeId,
+        cleanedGuess,
+      );
+
+      setAttemptResults((previousResults) => [
+        ...previousResults,
+        {
+          answer:
+            result.correct && result.songTitle
+              ? result.songTitle
+              : cleanedGuess,
+          status: result.correct
+            ? "correct"
+            : "wrong",
+        },
+      ]);
+
+      setGuess("");
+    } catch (error) {
+      console.error(
+        "Erro ao validar palpite:",
+        error,
+      );
+
+      setGuessError(
+        "Não foi possível validar o palpite. Tente novamente.",
+      );
+    } finally {
+      setIsSubmittingGuess(false);
+    }
   }
 
   function handleCloseTutorial(dontShowAgain: boolean) {
@@ -331,9 +468,16 @@ function MusicGamePage() {
           <p>Escute o trecho e descubra qual música está tocando.</p>
         </div>
 
-        <div className="daily-challenge" aria-label="Música do dia número 1">
+        <div className="daily-challenge" aria-label={
+          dailyChallenge
+            ? `Música do dia número ${dailyChallenge.challengeNumber}`
+            : "Carregando música do dia"
+        }>
           <span>Música do dia</span>
-          <strong>#{dailyChallengeId}</strong>
+          <strong>{dailyChallenge
+            ? `#${dailyChallenge.challengeId}`
+            : "Carregando..."}
+          </strong>
         </div>
 
         <div className="lives">
@@ -403,6 +547,12 @@ function MusicGamePage() {
             ))}
           </div>
 
+          {challengeError && (
+            <p className="challenge-error">
+              {challengeError}
+            </p>
+          )}
+
           <button
             className="play-button"
             type="button"
@@ -435,6 +585,11 @@ function MusicGamePage() {
           <label className="guess-form__label" htmlFor="song-guess">
             Qual é a música?
           </label>
+          {guessError && (
+            <p className="guess-form__error" role="alert">
+              {guessError}
+            </p>
+          )}
           <div className="guess-form__autocomplete">
             <input
               id="song-guess"
@@ -444,7 +599,11 @@ function MusicGamePage() {
               placeholder="Digite o nome da música..."
               autoComplete="off"
               value={guess}
-              disabled={gameFinished}
+              disabled={
+                gameFinished ||
+                isGameUnavailable ||
+                isSubmittingGuess
+              }
               aria-autocomplete="list"
               aria-expanded={showSuggestions}
               aria-controls="song-suggestions"
@@ -512,16 +671,26 @@ function MusicGamePage() {
               className="guess-button guess-button--skip"
               type="button"
               onClick={handleSkip}
-              disabled={gameFinished}
+              disabled={
+                gameFinished ||
+                isGameUnavailable ||
+                isSubmittingGuess
+              }
             >
               Pular
             </button>
             <button
               className="guess-button guess-button--confirm"
               type="submit"
-              disabled={gameFinished}
+              disabled={
+                gameFinished ||
+                isGameUnavailable ||
+                isSubmittingGuess
+              }
             >
-              Confirmar
+              {isSubmittingGuess
+                ? "Validando..."
+                : "Confirmar"}
             </button>
           </div>
         </form>
@@ -533,7 +702,7 @@ function MusicGamePage() {
       {isResultOpen && (
         <ResultModal
           hasWon={hasWon}
-          songTitle={dailySongTitle}
+          songTitle={revealedSongTitle ?? "Resposta não revelada"}
           attemptsUsed={attemptResults.length}
           remainingLives={remainingLives}
           isPlaying={isPlaying}

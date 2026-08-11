@@ -362,6 +362,13 @@
   margin-top: 36px;
 }
 
+.guess-form__error {
+  margin: 12px 0 0;
+  color: #ff3158;
+  text-align: center;
+}
+
+
 .guess-form__label {
   display: block;
   margin-bottom: 10px;
@@ -1019,6 +1026,12 @@
   color: #cfcfcf;
   font-size: 0.75rem;
   text-align: right;
+}
+
+.challenge-error {
+  margin: -14px 0 24px;
+  color: #ff3158;
+  text-align: center;
 }
 
 @media (max-width: 600px) {
