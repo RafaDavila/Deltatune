@@ -33,6 +33,28 @@ type AttemptResult = {
   status: "skipped" | "wrong" | "correct";
 };
 
+function formatCountdown(
+  remainingMilliseconds: number,
+): string {
+  const totalSeconds = Math.floor(
+    remainingMilliseconds / 1000,
+  );
+
+  const hours = Math.floor(totalSeconds / 3600);
+
+  const minutes = Math.floor(
+    (totalSeconds % 3600) / 60,
+  );
+
+  const seconds = totalSeconds % 60;
+
+  return [hours, minutes, seconds]
+    .map((value) =>
+      value.toString().padStart(2, "0"),
+    )
+    .join(":");
+}
+
 function loadSavedAttemptResults(
   challengeId: string,
   maximumAttempts: number,
@@ -77,6 +99,10 @@ function loadSavedAttemptResults(
 }
 
 function MusicGamePage() {
+
+  const [currentTime, setCurrentTime] =
+    useState(() => Date.now());
+
   const [isChallengeLoading, setIsChallengeLoading] =
     useState(true);
 
@@ -119,6 +145,19 @@ function MusicGamePage() {
   const attemptDurations =
     dailyChallenge?.attemptDurations ??
     DEFAULT_ATTEMPT_DURATIONS;
+
+  const remainingResetTime = dailyChallenge
+    ? Math.max(
+      new Date(
+        dailyChallenge.nextResetAt,
+      ).getTime() - currentTime,
+      0,
+    )
+    : 0;
+
+  const resetCountdown = dailyChallenge
+    ? formatCountdown(remainingResetTime)
+    : "--:--:--";
 
   const isGameUnavailable =
     isChallengeLoading ||
@@ -183,6 +222,15 @@ function MusicGamePage() {
 
     setIsPlaying(false);
   }
+
+  useEffect(() => {
+    const intervalid = window.setInterval(() => {
+      setCurrentTime(Date.now());
+    }, 1000);
+    return () => {
+      window.clearInterval(intervalid);
+    }
+  }, []);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -473,12 +521,20 @@ function MusicGamePage() {
             ? `Música do dia número ${dailyChallenge.challengeNumber}`
             : "Carregando música do dia"
         }>
+
           <span>Música do dia</span>
           <strong>{dailyChallenge
             ? `#${dailyChallenge.challengeId}`
             : "Carregando..."}
           </strong>
         </div>
+        <p
+          className="daily-challenge__countdown"
+          aria-live="polite"
+        >
+          Próxima música em{" "}
+          <strong>{resetCountdown}</strong>
+        </p>
 
         <div className="lives">
           <div

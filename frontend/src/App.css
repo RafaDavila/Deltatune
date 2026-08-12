@@ -275,6 +275,20 @@
   text-transform: uppercase;
 }
 
+.daily-challenge__countdown {
+  margin: -16px 0 30px;
+  color: #9b9ba5;
+  font-size: 0.75rem;
+  letter-spacing: 1px;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.daily-challenge__countdown strong {
+  color: #ffffff;
+  font-variant-numeric: tabular-nums;
+}
+
 .daily-challenge span {
   color: #cfcfcf;
   font-size: 0.85rem;
@@ -835,7 +849,7 @@
   padding: 16px 12px;
 }
 
-.result-modal__stats div + div {
+.result-modal__stats div+div {
   border-left: 2px solid #44444e;
 }
 
@@ -965,7 +979,7 @@
 @media (max-width: 600px) {
 
   .result-modal__hearts {
-    gap:7px;
+    gap: 7px;
   }
 
   .result-modal__heart {
@@ -977,7 +991,7 @@
     grid-template-columns: 1fr;
   }
 
-  .result-modal__stats div + div {
+  .result-modal__stats div+div {
     border-top: 2px solid #44444e;
     border-left: 0;
   }
@@ -1105,9 +1119,9 @@
     grid-template-columns: 1fr 1fr;
   }
 
- .guess-form__autocomplete {
-  grid-column: 1 / -1;
-}
+  .guess-form__autocomplete {
+    grid-column: 1 / -1;
+  }
 
   .guess-button {
     padding: 13px 10px;
