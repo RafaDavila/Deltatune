@@ -1,9 +1,20 @@
 from dataclasses import dataclass, field
 from uuid import uuid4
+from typing import Literal
 
 
 MAX_ATTEMPTS = 6
 
+AttemptStatus = Literal[
+    "skipped",
+    "wrong",
+    "correct",
+]
+
+@dataclass(frozen=True)
+class SessionAttempt:
+    answer: str
+    status: AttemptStatus
 
 @dataclass
 class GameSession:
@@ -12,7 +23,7 @@ class GameSession:
     failed_attempts: int = 0
     finished: bool = False
     won: bool = False
-    answers: list[str] = field(
+    attempts: list[SessionAttempt] = field(
         default_factory=list,
     )
 

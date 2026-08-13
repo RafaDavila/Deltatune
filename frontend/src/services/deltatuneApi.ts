@@ -1,8 +1,8 @@
 export type DailyChallengeResponse = {
-    challengeId: string;
-    challengeNumber: number;
-    attemptDurations: number[];
-    nextResetAt: string;
+  challengeId: string;
+  challengeNumber: number;
+  attemptDurations: number[];
+  nextResetAt: string;
 };
 
 export type GuessResponse = {
@@ -26,19 +26,19 @@ export type SkipResponse = {
 };
 
 const API_BASE_URL = (
-    import.meta.env.VITE_API_URL ??
-    "http://127.0.0.1:8000"
+  import.meta.env.VITE_API_URL ??
+  "http://127.0.0.1:8000"
 ).replace(/\/$/, "");
 
-export async function getDailyChallenge(): Promise<DailyChallengeResponse>{
-    const response = await fetch(
-        `${API_BASE_URL}/challenges/daily`,
-    );
+export async function getDailyChallenge(): Promise<DailyChallengeResponse> {
+  const response = await fetch(
+    `${API_BASE_URL}/challenges/daily`,
+  );
 
-    if (!response.ok) {
-        throw new Error("Não foi possivel carregar o desafio diário");
-    }
-    return response.json();
+  if (!response.ok) {
+    throw new Error("Não foi possivel carregar o desafio diário");
+  }
+  return response.json();
 }
 
 export async function startDailyChallenge():
@@ -88,12 +88,12 @@ export async function submitDailyGuess(
   return response.json();
 }
 
-export type StartDailyChallengeResponse = 
-    DailyChallengeResponse & {
-        sessionId: string,
-        remainingLives: number,
-        maximumAttempts: number,
-    };
+export type StartDailyChallengeResponse =
+  DailyChallengeResponse & {
+    sessionId: string,
+    remainingLives: number,
+    maximumAttempts: number,
+  };
 
 
 export async function skipDailyGuess(
@@ -117,6 +117,38 @@ export async function skipDailyGuess(
   if (!response.ok) {
     throw new Error(
       "Não foi possível pular a tentativa.",
+    );
+  }
+
+  return response.json();
+}
+
+export type SessionAttempt = {
+  answer: string;
+  status: "skipped" | "wrong" | "correct";
+};
+
+export type ResumeDailyChallengeResponse =
+  DailyChallengeResponse & {
+    sessionId: string,
+    attempts: SessionAttempt[];
+    remainingLives: number,
+    maximumAttempts: number,
+    won: boolean;
+    gameFinished: boolean;
+    songTitle: string | null,
+  };
+
+export async function resumeDailyChallenge(
+  sessionId: string,
+): Promise<ResumeDailyChallengeResponse> {
+  const response = await fetch(
+    `${API_BASE_URL}/challenges/daily/session/${sessionId}`,
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      "Não foi possível recuperar a partida.",
     );
   }
 
