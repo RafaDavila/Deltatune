@@ -7,7 +7,7 @@ import heartIcon from "../assets/heart.png";
 import SiteFooter from "../components/SiteFooter";
 import TutorialModal from "../components/TutorialModal";
 import ResultModal from "../components/ResultModal";
-import { getDailyChallenge, submitDailyGuess, type DailyChallengeResponse, } from "../services/deltatuneApi";
+import { skipDailyGuess, startDailyChallenge, submitDailyGuess, type DailyChallengeResponse, } from "../services/deltatuneApi";
 
 const DEFAULT_ATTEMPT_DURATIONS = [
   0.5,
@@ -55,50 +55,15 @@ function formatCountdown(
     .join(":");
 }
 
-function loadSavedAttemptResults(
-  challengeId: string,
-  maximumAttempts: number,
-): AttemptResult[] {
-  const gameStorageKey = `deltatune-game-${challengeId}`;
-
-  const savedGame = localStorage.getItem(gameStorageKey);
-
-  if (!savedGame) {
-    return [];
-  }
-
-  try {
-    const parsedGame: unknown = JSON.parse(savedGame);
-
-    if (!Array.isArray(parsedGame)) {
-      return [];
-    }
-
-    return parsedGame
-      .filter((item): item is AttemptResult => {
-        if (typeof item !== "object" || item === null) {
-          return false;
-        }
-
-        const attempt = item as Record<string, unknown>;
-
-        const validStatus =
-          attempt.status === "skipped" ||
-          attempt.status === "wrong" ||
-          attempt.status === "correct";
-
-        return (
-          typeof attempt.answer === "string" &&
-          validStatus
-        );
-      })
-      .slice(0, maximumAttempts);
-  } catch {
-    return [];
-  }
-}
-
 function MusicGamePage() {
+
+  const [sessionId, setSessionId] =
+    useState<string | null>(null);
+
+  const [
+    revealedSongTitle,
+    setRevealedSongTitle,
+  ] = useState<string | null>(null);
 
   const [currentTime, setCurrentTime] =
     useState(() => Date.now());
@@ -163,6 +128,7 @@ function MusicGamePage() {
     isChallengeLoading ||
     !isProgressLoaded ||
     !dailyChallenge ||
+    !sessionId ||
     Boolean(challengeError);
   const failedAttempts = attemptResults.filter(
     (result) => result.status !== "correct",
@@ -171,10 +137,6 @@ function MusicGamePage() {
   const remainingLives = attemptDurations.length - failedAttempts;
   const hasWon = attemptResults.some((result) => result.status === "correct");
   const gameFinished = hasWon || failedAttempts === attemptDurations.length;
-  const revealedSongTitle =
-    attemptResults.find(
-      (result) => result.status === "correct",
-    )?.answer ?? null;
   const normalizedGuess = guess.trim().toLocaleLowerCase();
 
   const filteredSongs = normalizedGuess
@@ -300,20 +262,17 @@ function MusicGamePage() {
 
       try {
         const challenge =
-          await getDailyChallenge();
+          await startDailyChallenge();
 
         if (cancelled) {
           return;
         }
 
-        const savedResults =
-          loadSavedAttemptResults(
-            challenge.challengeId,
-            challenge.attemptDurations.length,
-          );
 
         setDailyChallenge(challenge);
-        setAttemptResults(savedResults);
+        setSessionId(challenge.sessionId);
+        setAttemptResults([]);
+        setRevealedSongTitle(null);
         setChallengeError(null);
         setIsProgressLoaded(true);
       } catch (error) {
@@ -322,14 +281,15 @@ function MusicGamePage() {
         }
 
         console.error(
-          "Erro ao carregar desafio diário:",
+          "Erro ao iniciar desafio diário:",
           error,
         );
 
         setDailyChallenge(null);
+        setSessionId(null);
         setAttemptResults([]);
         setChallengeError(
-          "Não foi possível carregar o desafio diário.",
+          "Não foi possível iniciar o desafio diário.",
         );
       } finally {
         if (!cancelled) {
@@ -407,82 +367,116 @@ function MusicGamePage() {
     }
   }
 
-  function handleSkip() {
-    if (
-      gameFinished ||
-      isGameUnavailable ||
-      isSubmittingGuess
-    ) {
-      return;
-    }
+  async function handleSkip() {
+  if (
+    gameFinished ||
+    isGameUnavailable ||
+    isSubmittingGuess ||
+    !dailyChallenge ||
+    !sessionId
+  ) {
+    return;
+  }
 
-    setIsSuggestionsOpen(false);
-    setActiveSuggestionIndex(-1);
-    stopAudio();
+  setIsSuggestionsOpen(false);
+  setActiveSuggestionIndex(-1);
+  stopAudio();
+  setIsSubmittingGuess(true);
+  setGuessError(null);
+
+  try {
+    const result = await skipDailyGuess(
+      sessionId,
+      dailyChallenge.challengeId,
+    );
+
     setAttemptResults((previousResults) => [
       ...previousResults,
-      { answer: "Pulou", status: "skipped" },
+      {
+        answer: "Pulou",
+        status: "skipped",
+      },
     ]);
+
+    if (result.songTitle) {
+      setRevealedSongTitle(result.songTitle);
+    }
+
     setGuess("");
-  }
+  } catch (error) {
+    console.error(
+      "Erro ao pular tentativa:",
+      error,
+    );
 
-  async function handleSubmit(
-    event: SubmitEvent<HTMLFormElement>,
+    setGuessError(
+      "Não foi possível pular a tentativa. Tente novamente.",
+    );
+  } finally {
+    setIsSubmittingGuess(false);
+  }
+}
+
+ async function handleSubmit(
+  event: SubmitEvent<HTMLFormElement>,
+) {
+  event.preventDefault();
+
+  setIsSuggestionsOpen(false);
+  setActiveSuggestionIndex(-1);
+
+  const cleanedGuess = guess.trim();
+
+  if (
+    gameFinished ||
+    isGameUnavailable ||
+    isSubmittingGuess ||
+    !dailyChallenge ||
+    !sessionId ||
+    !cleanedGuess
   ) {
-    event.preventDefault();
-
-    setIsSuggestionsOpen(false);
-    setActiveSuggestionIndex(-1);
-
-    const cleanedGuess = guess.trim();
-
-    if (
-      gameFinished ||
-      isGameUnavailable ||
-      isSubmittingGuess ||
-      !dailyChallenge ||
-      !cleanedGuess
-    ) {
-      return;
-    }
-
-    stopAudio();
-    setIsSubmittingGuess(true);
-    setGuessError(null);
-
-    try {
-      const result = await submitDailyGuess(
-        dailyChallenge.challengeId,
-        cleanedGuess,
-      );
-
-      setAttemptResults((previousResults) => [
-        ...previousResults,
-        {
-          answer:
-            result.correct && result.songTitle
-              ? result.songTitle
-              : cleanedGuess,
-          status: result.correct
-            ? "correct"
-            : "wrong",
-        },
-      ]);
-
-      setGuess("");
-    } catch (error) {
-      console.error(
-        "Erro ao validar palpite:",
-        error,
-      );
-
-      setGuessError(
-        "Não foi possível validar o palpite. Tente novamente.",
-      );
-    } finally {
-      setIsSubmittingGuess(false);
-    }
+    return;
   }
+
+  stopAudio();
+  setIsSubmittingGuess(true);
+  setGuessError(null);
+
+  try {
+    const result = await submitDailyGuess(
+      sessionId,
+      dailyChallenge.challengeId,
+      cleanedGuess,
+    );
+
+    setAttemptResults((previousResults) => [
+      ...previousResults,
+      {
+        answer: cleanedGuess,
+        status: result.correct
+          ? "correct"
+          : "wrong",
+      },
+    ]);
+
+    if (result.songTitle) {
+      setRevealedSongTitle(result.songTitle);
+    }
+
+    setGuess("");
+  } catch (error) {
+    console.error(
+      "Erro ao validar palpite:",
+      error,
+    );
+
+    setGuessError(
+      "Não foi possível validar o palpite. Tente novamente.",
+    );
+  } finally {
+    setIsSubmittingGuess(false);
+  }
+}
 
   function handleCloseTutorial(dontShowAgain: boolean) {
     if (dontShowAgain) {

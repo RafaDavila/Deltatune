@@ -14,6 +14,12 @@ class GuessRequest(BaseModel):
         populate_by_name=True,
     )
 
+    session_id: str = Field(
+        alias="sessionId",
+        min_length=36,
+        max_length=36,
+    )
+
     challenge_id: str = Field(
         alias="challengeId",
         min_length=3,
@@ -37,8 +43,76 @@ class GuessResponse(BaseModel):
     model_config = ConfigDict(
         populate_by_name=True,
     )
-    challenge_id: str = Field(alias="challengeId")
+
+    challenge_id: str = Field(
+        alias="challengeId",
+    )
     correct: bool
+    won: bool
+    game_finished: bool = Field(
+        alias="gameFinished",
+    )
+    attempts_used: int = Field(
+        alias="attemptsUsed",
+    )
+    remaining_lives: int = Field(
+        alias="remainingLives",
+    )
+    song_title: str | None = Field(
+        default=None,
+        alias="songTitle",
+    )
+
+class StartDailyChallengeResponse(
+    DailyChallengeResponse
+):
+    session_id: str = Field(
+        serialization_alias="sessionId",
+    )
+    remaining_lives: int =Field(
+        serialization_alias="remainingLives",
+    )
+    maximum_attempts: int = Field(
+        serialization_alias="maximumAttempts",
+    )
+
+
+class SkipRequest(BaseModel):
+    model_config = ConfigDict(
+        populate_by_name=True,
+    )
+
+    session_id: str = Field(
+        alias="sessionId",
+        min_length=36,
+        max_length=36,
+    )
+    challenge_id: str = Field(
+        alias="challengeId",
+        min_length=3,
+        max_length=20,
+    )
+
+
+class SkipResponse(BaseModel):
+    model_config = ConfigDict(
+        populate_by_name=True,
+    )
+
+    challenge_id: str = Field(
+        alias="challengeId",
+    )
+    skipped: bool
+    won: bool
+    game_finished: bool = Field(
+        alias="gameFinished",
+    )
+    attempts_used: int = Field(
+        alias="attemptsUsed",
+    )
+    remaining_lives: int = Field(
+        alias="remainingLives",
+    )
     song_title: str | None = Field(
         default=None,
         alias="songTitle",

@@ -6,9 +6,23 @@ export type DailyChallengeResponse = {
 };
 
 export type GuessResponse = {
-    challengeId: string;
-    correct: boolean;
-    songTitle: string | null;
+  challengeId: string;
+  correct: boolean;
+  won: boolean;
+  gameFinished: boolean;
+  attemptsUsed: number;
+  remainingLives: number;
+  songTitle: string | null;
+};
+
+export type SkipResponse = {
+  challengeId: string;
+  skipped: boolean;
+  won: boolean;
+  gameFinished: boolean;
+  attemptsUsed: number;
+  remainingLives: number;
+  songTitle: string | null;
 };
 
 const API_BASE_URL = (
@@ -27,24 +41,84 @@ export async function getDailyChallenge(): Promise<DailyChallengeResponse>{
     return response.json();
 }
 
-export async function submitDailyGuess(
-    challengeId: string,
-    answer: string,
-): Promise<GuessResponse> {
-    const response = await fetch(
-        `${API_BASE_URL}/challenges/daily/guess`,
-        {
-            method: "POST",
-            headers: {"Content-Type": "application/json"},
-            body: JSON.stringify({
-                challengeId,
-                answer,
-            }),
-        },
-    )
+export async function startDailyChallenge():
+  Promise<StartDailyChallengeResponse> {
+  const response = await fetch(
+    `${API_BASE_URL}/challenges/daily/start`,
+    {
+      method: "POST",
+    },
+  );
 
-    if(!response.ok) {
-        throw new Error ("Não foi possível validar o palpite.",);
-    }
-    return response.json();
+  if (!response.ok) {
+    throw new Error(
+      "Não foi possível iniciar a partida.",
+    );
+  }
+
+  return response.json();
+}
+
+export async function submitDailyGuess(
+  sessionId: string,
+  challengeId: string,
+  answer: string,
+): Promise<GuessResponse> {
+  const response = await fetch(
+    `${API_BASE_URL}/challenges/daily/guess`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        sessionId,
+        challengeId,
+        answer,
+      }),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      "Não foi possível validar o palpite.",
+    );
+  }
+
+  return response.json();
+}
+
+export type StartDailyChallengeResponse = 
+    DailyChallengeResponse & {
+        sessionId: string,
+        remainingLives: number,
+        maximumAttempts: number,
+    };
+
+
+export async function skipDailyGuess(
+  sessionId: string,
+  challengeId: string,
+): Promise<SkipResponse> {
+  const response = await fetch(
+    `${API_BASE_URL}/challenges/daily/skip`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        sessionId,
+        challengeId,
+      }),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      "Não foi possível pular a tentativa.",
+    );
+  }
+
+  return response.json();
 }
