@@ -1,5 +1,126 @@
 from fastapi.testclient import TestClient
+from uuid import uuid4
+from app.services.daily_challenge import (
+    get_daily_challenge,
+)
 
+def test_correct_daily_guess(
+    client: TestClient,
+) -> None:
+    session_id, challenge_id = start_session(
+        client,
+    )
+
+    daily_challenge = get_daily_challenge()
+
+    guess_response = client.post(
+        "/challenges/daily/guess",
+        json={
+            "sessionId": session_id,
+            "challengeId": challenge_id,
+            "answer": daily_challenge.song.title,
+        },
+    )
+
+    assert guess_response.status_code == 200
+
+    guess_data = guess_response.json()
+
+    assert guess_data["correct"] is True
+    assert guess_data["won"] is True
+    assert guess_data["gameFinished"] is True
+    assert guess_data["attemptsUsed"] == 1
+    assert guess_data["remainingLives"] == 6
+    assert (
+        guess_data["songTitle"]
+        == daily_challenge.song.title
+    )
+
+    resume_response = client.get(
+        f"/challenges/daily/session/{session_id}",
+    )
+
+    resume_data = resume_response.json()
+
+    assert resume_data["won"] is True
+    assert resume_data["gameFinished"] is True
+    assert resume_data["attempts"] == [
+        {
+            "answer": daily_challenge.song.title,
+            "status": "correct",
+        }
+    ]
+
+    second_guess_response = client.post(
+        "/challenges/daily/guess",
+        json={
+            "sessionId": session_id,
+            "challengeId": challenge_id,
+            "answer": daily_challenge.song.title,
+        },
+    )
+
+    assert second_guess_response.status_code == 409
+    assert second_guess_response.json()["detail"] == (
+        "Esta partida já foi finalizada."
+    )
+
+def test_finish_game_after_six_skips(
+        client: TestClient,
+) -> None:
+    session_id, challenge_id = start_session(
+        client,
+    )
+
+    final_response = None
+
+    for attempt_index in range(6):
+        final_response = client.post(
+            "/challenges/daily/skip",
+            json={
+                "sessionId": session_id,
+                "challengeId": challenge_id,
+            },
+        )
+
+        assert final_response.status_code == 200
+        assert (
+            final_response.json()["remainingLives"] == 5 - attempt_index
+        )
+
+    assert final_response is not None
+
+    final_data = final_response.json()
+
+    assert final_data["attemptsUsed"] == 6
+    assert final_data["remainingLives"] == 0
+    assert final_data["won"] is False
+    assert final_data ["gameFinished"] is True
+    assert final_data ["songTitle"] is not None
+
+    seventh_skip_response = client.post(
+        "/challenges/daily/skip",
+        json={
+            "sessionId": session_id,
+            "challengeId": challenge_id,
+        },
+    )
+
+    assert seventh_skip_response.status_code == 409
+    assert seventh_skip_response.json()["detail"] == ("Esta partida já foi finalizada.")
+
+def test_resume_nonexistent_session(
+        client: TestClient,
+) -> None:
+    nonexistente_session_id = str(uuid4())
+
+    response = client.get(
+        "/challenges/daily/session/"
+        f"{nonexistente_session_id}",
+    )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == ("Sessão de partida não encontrada.")
 
 def start_session(
     client: TestClient,
