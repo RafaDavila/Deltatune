@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
 from app.schemas.challenge import (
@@ -13,9 +13,13 @@ from app.services.daily_challenge import (
     get_daily_challenge as get_daily_challenge_service,
 )
 
-from app.data.game_sessions import (
-    MAX_ATTEMPTS,
-    SessionAttempt,
+from typing import Annotated
+
+from sqlalchemy.orm import Session
+from app.database import get_db
+from app.models.game_session import MAX_ATTEMPTS
+from app.repositories.game_sessions import (
+    add_attempt,
     create_game_session,
     get_game_session,
 )
@@ -26,6 +30,11 @@ router = APIRouter(
 )
 
 ATTEMPT_DURATIONS = [0.5, 1, 2, 4, 8, 16]
+
+DatabaseSession = Annotated[
+    Session,
+    Depends(get_db),
+]
 
 
 class SessionAttemptResponse(BaseModel):
@@ -70,10 +79,13 @@ def normalize_answer(answer: str) -> str:
     response_model=StartDailyChallengeResponse,
     status_code=status.HTTP_201_CREATED,
 )
-def start_daily_challenge() -> StartDailyChallengeResponse:
+def start_daily_challenge(
+    db: DatabaseSession,
+) -> StartDailyChallengeResponse:
     daily_challenge = get_daily_challenge_service()
 
     game_session = create_game_session(
+        db,
         daily_challenge.id,
     )
 
@@ -82,7 +94,7 @@ def start_daily_challenge() -> StartDailyChallengeResponse:
         challenge_number=daily_challenge.number,
         attempt_durations=ATTEMPT_DURATIONS,
         next_reset_at=daily_challenge.next_reset_at,
-        session_id=game_session.id,
+        session_id=str(game_session.id),
         remaining_lives=game_session.remaining_lives,
         maximum_attempts=MAX_ATTEMPTS,
     )
@@ -94,10 +106,11 @@ def start_daily_challenge() -> StartDailyChallengeResponse:
 )
 def resume_daily_challenge(
     session_id: str,
+    db: DatabaseSession,
 ) -> ResumeDailyChallengeResponse:
     daily_challenge = get_daily_challenge_service()
 
-    game_session = get_game_session(session_id)
+    game_session = get_game_session(db, session_id)
 
     if game_session is None:
         raise HTTPException(
@@ -116,7 +129,7 @@ def resume_daily_challenge(
         challenge_number=daily_challenge.number,
         attempt_durations=ATTEMPT_DURATIONS,
         next_reset_at=daily_challenge.next_reset_at,
-        session_id=game_session.id,
+        session_id=str(game_session.id),
         attempts=[
             SessionAttemptResponse(
                 answer=attempt.answer,
@@ -138,6 +151,7 @@ def resume_daily_challenge(
 )
 def submit_daily_guess(
     guess: GuessRequest,
+    db: DatabaseSession,
 ) -> GuessResponse:
     daily_challenge = get_daily_challenge_service()
 
@@ -148,6 +162,7 @@ def submit_daily_guess(
         )
 
     game_session = get_game_session(
+        db,
         guess.session_id,
     )
 
@@ -182,21 +197,12 @@ def submit_daily_guess(
         normalized_guess == normalize_answer(answer) for answer in accepted_answers
     )
 
-    game_session.attempts.append(
-        SessionAttempt(
-            answer=guess.answer,
-            status=("correct" if is_correct else "wrong"),
-        )
+    add_attempt(
+        db,
+        game_session,
+        answer=guess.answer,
+        status=("correct" if is_correct else "wrong"),
     )
-
-    if is_correct:
-        game_session.won = True
-        game_session.finished = True
-    else:
-        game_session.failed_attempts += 1
-
-        if game_session.remaining_lives == 0:
-            game_session.finished = True
 
     return GuessResponse(
         challenge_id=daily_challenge.id,
@@ -215,6 +221,7 @@ def submit_daily_guess(
 )
 def skip_daily_guess(
     skip: SkipRequest,
+    db: DatabaseSession,
 ) -> SkipResponse:
     daily_challenge = get_daily_challenge_service()
 
@@ -225,6 +232,7 @@ def skip_daily_guess(
         )
 
     game_session = get_game_session(
+        db,
         skip.session_id,
     )
 
@@ -246,16 +254,12 @@ def skip_daily_guess(
             detail="Esta partida já foi finalizada.",
         )
 
-    game_session.attempts.append(
-        SessionAttempt(
-            answer="Pulou",
-            status="skipped",
-        )
+    add_attempt(
+        db,
+        game_session,
+        answer="Pulou",
+        status="skipped",
     )
-    game_session.failed_attempts += 1
-
-    if game_session.remaining_lives == 0:
-        game_session.finished = True
 
     return SkipResponse(
         challenge_id=daily_challenge.id,

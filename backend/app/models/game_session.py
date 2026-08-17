@@ -14,6 +14,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
 
+MAX_ATTEMPTS = 6
 
 class GameSessionModel(Base):
     __tablename__ = "game_sessions"
@@ -41,6 +42,31 @@ class GameSessionModel(Base):
         cascade="all, delete-orphan",
         order_by="AttemptModel.attempt_number",
     )
+
+    @property
+    def failed_attempts(self) -> int:
+        return sum(
+            attempt.status != "correct"
+            for attempt in self.attempts
+        )
+    @property
+    def remaining_lives(self) -> int:
+        return max(
+            MAX_ATTEMPTS - self.failed_attempts,
+            0,
+        )
+    @property
+    def won(self) -> bool:
+        return any(
+            attempt.status == "correct"
+            for attempt in self.attempts
+        )
+    @property
+    def finished(self) -> bool:
+        return(
+            self.won
+            or self.failed_attempts >= MAX_ATTEMPTS
+        )
 
 
 class AttemptModel(Base):
