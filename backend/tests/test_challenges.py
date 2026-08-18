@@ -254,3 +254,79 @@ def test_resume_new_daily_challenge(
     assert response_data["won"] is False
     assert response_data["gameFinished"] is False
     assert response_data["songTitle"] is None
+
+def test_accept_normalized_correct_answer(
+    client: TestClient,
+) -> None:
+    session_id, challenge_id = start_session(
+        client,
+    )
+
+    daily_challenge = get_daily_challenge()
+
+    answer_with_extra_spaces = "   ".join(
+        daily_challenge.song.title
+        .swapcase()
+        .split()
+    )
+
+    response = client.post(
+        "/challenges/daily/guess",
+        json={
+            "sessionId": session_id,
+            "challengeId": challenge_id,
+            "answer": f"  {answer_with_extra_spaces}  ",
+        },
+    )
+
+    assert response.status_code == 200
+
+    response_data = response.json()
+
+    assert response_data["correct"] is True
+    assert response_data["won"] is True
+    assert response_data["gameFinished"] is True
+    assert response_data["remainingLives"] == 6
+
+
+def test_reject_outdated_challenge(
+    client: TestClient,
+) -> None:
+    session_id, _ = start_session(client)
+
+    response = client.post(
+        "/challenges/daily/guess",
+        json={
+            "sessionId": session_id,
+            "challengeId": "outdated-challenge",
+            "answer": "Qualquer resposta",
+        },
+    )
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == (
+        "Este desafio não é mais o desafio atual."
+    )
+
+    resume_response = client.get(
+        f"/challenges/daily/session/{session_id}",
+    )
+
+    resume_data = resume_response.json()
+
+    assert resume_data["attempts"] == []
+    assert resume_data["remainingLives"] == 6
+
+
+def test_resume_invalid_session_id(
+    client: TestClient,
+) -> None:
+    response = client.get(
+        "/challenges/daily/session/"
+        "not-a-valid-uuid",
+    )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == (
+        "Sessão de partida não encontrada."
+    )
