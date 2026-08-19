@@ -53,40 +53,44 @@ SONG_SEEDS = (
 )
 
 
-def seed_songs() -> None:
-    with Session(engine) as db:
-        for song_data in SONG_SEEDS:
-            song = db.get(
-                SongModel,
-                song_data["id"],
+def seed_songs(db: Session) -> None:
+    for song_data in SONG_SEEDS:
+        song = db.get(
+            SongModel,
+            song_data["id"],
+        )
+
+        if song is None:
+            song = SongModel(
+                id=song_data["id"],
+                title=song_data["title"],
+                chapter=song_data["chapter"],
             )
+            db.add(song)
+        else:
+            song.title = song_data["title"]
+            song.chapter = song_data["chapter"]
 
-            if song is None:
-                song = SongModel(
-                    id=song_data["id"],
-                    title=song_data["title"],
-                    chapter=song_data["chapter"],
+        existing_aliases = {
+            song_alias.alias
+            for song_alias in song.aliases
+        }
+
+        for alias in song_data["aliases"]:
+            if alias not in existing_aliases:
+                song.aliases.append(
+                    SongAliasModel(alias=alias),
                 )
-                db.add(song)
-            else:
-                song.title = song_data["title"]
-                song.chapter = song_data["chapter"]
 
-            existing_aliases = {
-                song_alias.alias
-                for song_alias in song.aliases
-            }
+    db.commit()
 
-            for alias in song_data["aliases"]:
-                if alias not in existing_aliases:
-                    song.aliases.append(
-                        SongAliasModel(alias=alias),
-                    )
 
-        db.commit()
+def main() -> None:
+    with Session(engine) as db:
+        seed_songs(db)
 
     print("Catálogo de músicas carregado com sucesso.")
 
 
 if __name__ == "__main__":
-    seed_songs()
+    main()

@@ -4,14 +4,17 @@ from app.services.daily_challenge import (
     get_daily_challenge,
 )
 
+from sqlalchemy.orm import Session
+
 def test_correct_daily_guess(
     client: TestClient,
+    db_session: Session,
 ) -> None:
     session_id, challenge_id = start_session(
         client,
     )
 
-    daily_challenge = get_daily_challenge()
+    daily_challenge = get_daily_challenge(db_session,)
 
     guess_response = client.post(
         "/challenges/daily/guess",
@@ -257,12 +260,13 @@ def test_resume_new_daily_challenge(
 
 def test_accept_normalized_correct_answer(
     client: TestClient,
+    db_session: Session,
 ) -> None:
     session_id, challenge_id = start_session(
         client,
     )
 
-    daily_challenge = get_daily_challenge()
+    daily_challenge = get_daily_challenge(db_session)
 
     answer_with_extra_spaces = "   ".join(
         daily_challenge.song.title

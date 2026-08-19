@@ -59,8 +59,8 @@ class ResumeDailyChallengeResponse(DailyChallengeResponse):
     "/daily",
     response_model=DailyChallengeResponse,
 )
-def read_daily_challenge() -> DailyChallengeResponse:
-    daily_challenge = get_daily_challenge_service()
+def read_daily_challenge(db: DatabaseSession,) -> DailyChallengeResponse:
+    daily_challenge = get_daily_challenge_service(db)
 
     return DailyChallengeResponse(
         challenge_id=daily_challenge.id,
@@ -82,7 +82,7 @@ def normalize_answer(answer: str) -> str:
 def start_daily_challenge(
     db: DatabaseSession,
 ) -> StartDailyChallengeResponse:
-    daily_challenge = get_daily_challenge_service()
+    daily_challenge = get_daily_challenge_service(db)
 
     game_session = create_game_session(
         db,
@@ -108,7 +108,7 @@ def resume_daily_challenge(
     session_id: str,
     db: DatabaseSession,
 ) -> ResumeDailyChallengeResponse:
-    daily_challenge = get_daily_challenge_service()
+    daily_challenge = get_daily_challenge_service(db)
 
     game_session = get_game_session(db, session_id)
 
@@ -153,7 +153,7 @@ def submit_daily_guess(
     guess: GuessRequest,
     db: DatabaseSession,
 ) -> GuessResponse:
-    daily_challenge = get_daily_challenge_service()
+    daily_challenge = get_daily_challenge_service(db)
 
     if guess.challenge_id != daily_challenge.id:
         raise HTTPException(
@@ -186,7 +186,10 @@ def submit_daily_guess(
 
     accepted_answers = (
         daily_challenge.song.title,
-        *daily_challenge.song.aliases,
+        *(
+            song_alias.alias
+            for song_alias in daily_challenge.song.aliases
+        ),
     )
 
     normalized_guess = normalize_answer(
@@ -223,7 +226,7 @@ def skip_daily_guess(
     skip: SkipRequest,
     db: DatabaseSession,
 ) -> SkipResponse:
-    daily_challenge = get_daily_challenge_service()
+    daily_challenge = get_daily_challenge_service(db)
 
     if skip.challenge_id != daily_challenge.id:
         raise HTTPException(

@@ -10,6 +10,8 @@ from app.config import settings
 from app.database import Base, get_db
 from app.main import app
 
+from scripts.seed_songs import seed_songs
+
 test_engine = create_engine(
     settings.test_database_url,
 )
@@ -29,9 +31,17 @@ def reset_database() -> Generator[None, None, None]:
     Base.metadata.drop_all(bind=test_engine)
     Base.metadata.create_all(bind=test_engine)
 
+    with TestingSessionLocal() as session:
+        seed_songs(session)
+
     yield
 
     Base.metadata.drop_all(bind=test_engine)
+
+@pytest.fixture
+def db_session() -> Generator[Session, None, None]:
+    with TestingSessionLocal() as session:
+        yield session
 
 @pytest.fixture
 def client() -> Generator[TestClient, None, None]:
