@@ -334,3 +334,17 @@ def test_resume_invalid_session_id(
     assert response.json()["detail"] == (
         "Sessão de partida não encontrada."
     )
+
+def test_get_daily_audio(
+    client: TestClient,
+) -> None:
+    response = client.get(
+        "/challenges/daily/audio",
+    )
+
+    assert response.status_code == 200
+    assert (
+        response.headers["content-type"]
+        == "audio/mpeg"
+    )
+    assert len(response.content) > 0

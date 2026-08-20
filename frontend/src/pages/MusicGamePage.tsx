@@ -1,13 +1,12 @@
 import { useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent, type SubmitEvent, } from "react";
 import { FaVolumeHigh, FaVolumeXmark } from "react-icons/fa6";
 import { Link } from "react-router";
-import testSongAudio from "../assets/audio/BIG SHOT.mp3";
 import deltatuneLogo from "../assets/deltatune-logo.png";
 import heartIcon from "../assets/heart.png";
 import SiteFooter from "../components/SiteFooter";
 import TutorialModal from "../components/TutorialModal";
 import ResultModal from "../components/ResultModal";
-import { getSongs, resumeDailyChallenge, skipDailyGuess, startDailyChallenge, submitDailyGuess, type DailyChallengeResponse, } from "../services/deltatuneApi";
+import { getDailyAudioUrl, getSongs, resumeDailyChallenge, skipDailyGuess, startDailyChallenge, submitDailyGuess, type DailyChallengeResponse, } from "../services/deltatuneApi";
 
 const DEFAULT_ATTEMPT_DURATIONS = [
   0.5,
@@ -110,6 +109,12 @@ function MusicGamePage() {
   const attemptDurations =
     dailyChallenge?.attemptDurations ??
     DEFAULT_ATTEMPT_DURATIONS;
+  
+  const dailyAudioUrl = dailyChallenge
+    ? getDailyAudioUrl(
+        dailyChallenge.challengeId,
+    )
+    : undefined;
 
   const remainingResetTime = dailyChallenge
     ? Math.max(
@@ -656,7 +661,7 @@ function MusicGamePage() {
         </div>
 
         <section className="audio-player">
-          <audio ref={audioRef} src={testSongAudio} preload="auto" onEnded={stopAudio} />
+          <audio ref={audioRef} src={dailyAudioUrl} preload="auto" onEnded={stopAudio} />
 
           <div className="audio-player__info">
             <span>Trecho liberado</span>

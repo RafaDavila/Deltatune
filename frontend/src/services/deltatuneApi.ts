@@ -174,3 +174,12 @@ export type SongResponse = {
   title: string;
   chapter: number;
 };
+
+export function getDailyAudioUrl(
+  challengeId: string,
+): string {
+  return (
+    `${API_BASE_URL}/challenges/daily/audio` +
+    `?challenge=${encodeURIComponent(challengeId)}`
+  );
+}

@@ -15,7 +15,21 @@ from app.repositories.songs import get_song_by_id
 
 GAME_TIME_ZONE = ZoneInfo("America/Sao_Paulo")
 CHALLENGE_START_DATE = date(2026, 8, 11)
-DAILY_ROTATION = (6, 1, 2, 3, 4, 5)
+DAILY_ROTATION = (
+    7,   # Beginning
+    8,   # The Legend
+    9,   # Lancer
+    1,   # Rude Buster
+    10,  # Empty Town
+    2,   # Field of Hopes and Dreams
+    11,  # Scarlet Forest
+    12,  # Vs. Susie
+    13,  # Rouxls Kaard
+    14,  # Chaos King
+    3,   # The World Revolving
+    15,  # A Town Called Hometown
+    16,  # Don't Forget
+)
 
 
 @dataclass(frozen=True)

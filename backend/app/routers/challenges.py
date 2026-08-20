@@ -23,6 +23,8 @@ from app.repositories.game_sessions import (
     create_game_session,
     get_game_session,
 )
+from pathlib import Path
+from fastapi.responses import FileResponse
 
 router = APIRouter(
     prefix="/challenges",
@@ -35,6 +37,10 @@ DatabaseSession = Annotated[
     Session,
     Depends(get_db),
 ]
+
+BACKEND_DIRECTORY = Path(__file__).resolve().parents[2]
+
+AUDIO_DIRECTORY = BACKEND_DIRECTORY / "media" / "audio"
 
 
 class SessionAttemptResponse(BaseModel):
@@ -59,7 +65,9 @@ class ResumeDailyChallengeResponse(DailyChallengeResponse):
     "/daily",
     response_model=DailyChallengeResponse,
 )
-def read_daily_challenge(db: DatabaseSession,) -> DailyChallengeResponse:
+def read_daily_challenge(
+    db: DatabaseSession,
+) -> DailyChallengeResponse:
     daily_challenge = get_daily_challenge_service(db)
 
     return DailyChallengeResponse(
@@ -67,6 +75,37 @@ def read_daily_challenge(db: DatabaseSession,) -> DailyChallengeResponse:
         challenge_number=daily_challenge.number,
         attempt_durations=ATTEMPT_DURATIONS,
         next_reset_at=daily_challenge.next_reset_at,
+    )
+
+
+@router.get(
+    "/daily/audio",
+    response_class=FileResponse,
+)
+def read_daily_audio(
+    db: DatabaseSession,
+) -> FileResponse:
+    daily_challenge = get_daily_challenge_service(db)
+
+    audio_key = daily_challenge.song.audio_key
+
+    if audio_key is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=("O desafio atual não possui " "um áudio disponível."),
+        )
+
+    audio_path = AUDIO_DIRECTORY / f"{audio_key}.mp3"
+
+    if not audio_path.is_file():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Arquivo de áudio não encontrado.",
+        )
+
+    return FileResponse(
+        path=audio_path,
+        media_type="audio/mpeg",
     )
 
 
@@ -186,10 +225,7 @@ def submit_daily_guess(
 
     accepted_answers = (
         daily_challenge.song.title,
-        *(
-            song_alias.alias
-            for song_alias in daily_challenge.song.aliases
-        ),
+        *(song_alias.alias for song_alias in daily_challenge.song.aliases),
     )
 
     normalized_guess = normalize_answer(
