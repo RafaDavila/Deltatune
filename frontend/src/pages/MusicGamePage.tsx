@@ -7,7 +7,7 @@ import heartIcon from "../assets/heart.png";
 import SiteFooter from "../components/SiteFooter";
 import TutorialModal from "../components/TutorialModal";
 import ResultModal from "../components/ResultModal";
-import { resumeDailyChallenge, skipDailyGuess, startDailyChallenge, submitDailyGuess, type DailyChallengeResponse, } from "../services/deltatuneApi";
+import { getSongs, resumeDailyChallenge, skipDailyGuess, startDailyChallenge, submitDailyGuess, type DailyChallengeResponse, } from "../services/deltatuneApi";
 
 const DEFAULT_ATTEMPT_DURATIONS = [
   0.5,
@@ -17,16 +17,8 @@ const DEFAULT_ATTEMPT_DURATIONS = [
   8,
   16,
 ];
-const songTitles = [
-  "Rude Buster",
-  "Field of Hopes and Dreams",
-  "Scarlet Forest",
-  "The World Revolving",
-  "A Cyber's World?",
-  "Smart Race",
-  "Attack of the Killer Queen",
-  "BIG SHOT",
-];
+
+
 
 const GAME_SESSION_STORAGE_KEY =
   "deltatune-daily-session";
@@ -84,6 +76,11 @@ function MusicGamePage() {
     useState<string | null>(null);
   const [dailyChallenge, setDailyChallenge] = useState<DailyChallengeResponse | null>(null);
   const [challengeError, setChallengeError] = useState<string | null>(null);
+  const [songTitles, setSongTitles] =
+    useState<string[]>([]);
+
+  const [songCatalogError, setSongCatalogError] =
+    useState<string | null>(null);
   const [guess, setGuess] = useState("");
   const [isResultOpen, setIsResultOpen] = useState(false);
   const [isTutorialOpen, setIsTutorialOpen] = useState(
@@ -155,11 +152,45 @@ function MusicGamePage() {
   const showSuggestions =
     isSuggestionsOpen &&
     normalizedGuess.length > 0 &&
-    !gameFinished;
+    !gameFinished &&
+    !songCatalogError;
   const maximumDuration = attemptDurations[attemptDurations.length - 1];
   const unlockedDuration = gameFinished
     ? maximumDuration
     : attemptDurations[currentAttempt];
+  useEffect(() => {
+    let isCancelled = false;
+
+    async function loadSongCatalog() {
+      try {
+        const songs = await getSongs();
+
+        if (!isCancelled) {
+          setSongTitles(
+            songs.map((song) => song.title),
+          );
+          setSongCatalogError(null);
+        }
+      } catch (error) {
+        console.error(
+          "Erro ao carregar catálogo:",
+          error,
+        );
+
+        if (!isCancelled) {
+          setSongCatalogError(
+            "Não foi possível carregar as sugestões.",
+          );
+        }
+      }
+    }
+
+    loadSongCatalog();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
   useEffect(() => {
     if (!gameFinished) {
       return;
@@ -688,6 +719,14 @@ function MusicGamePage() {
           {guessError && (
             <p className="guess-form__error" role="alert">
               {guessError}
+            </p>
+          )}
+          {songCatalogError &&(
+            <p
+              className="guess-form__error"
+              role="alert"
+            >
+              {songCatalogError}
             </p>
           )}
           <div className="guess-form__autocomplete">

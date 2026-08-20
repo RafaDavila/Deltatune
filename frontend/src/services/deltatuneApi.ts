@@ -30,6 +30,20 @@ const API_BASE_URL = (
   "http://127.0.0.1:8000"
 ).replace(/\/$/, "");
 
+export async function getSongs(): Promise<SongResponse[]> {
+  const response = await fetch(
+    `${API_BASE_URL}/songs`,
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      "Não foi possível carregar o catálogo de músicas.",
+    );
+  }
+
+  return response.json();
+}
+
 export async function getDailyChallenge(): Promise<DailyChallengeResponse> {
   const response = await fetch(
     `${API_BASE_URL}/challenges/daily`,
@@ -154,3 +168,9 @@ export async function resumeDailyChallenge(
 
   return response.json();
 }
+
+export type SongResponse = {
+  id: number;
+  title: string;
+  chapter: number;
+};
