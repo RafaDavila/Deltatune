@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from app.routers.challenges import router as challenges_router
 from fastapi.middleware.cors import CORSMiddleware
+from app.routers.songs import router as songs_router
 
 app = FastAPI (
     title="Deltatune API",
@@ -29,5 +30,5 @@ app.include_router(challenges_router)
 def health_check() -> dict[str, str]:
     return{"status":"ok"}
 
-
-
+app.include_router(challenges_router)
+app.include_router(songs_router)

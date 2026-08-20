@@ -20,3 +20,21 @@ def get_song_by_id(
     )
 
     return db.scalar(statement)
+
+def list_songs(
+        db:Session,
+        chapter: int | None = None,
+) -> list[SongModel]:
+    statement = select(SongModel)
+
+    if chapter is not None:
+        statement = statement.where(
+            SongModel.chapter == chapter,
+        )
+
+    statement = statement.order_by(
+        SongModel.chapter,
+        SongModel.id,
+    )
+
+    return list(db.scalars(statement))
