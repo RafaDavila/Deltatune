@@ -12,6 +12,7 @@ from sqlalchemy.orm import (
 
 from app.database import Base
 
+
 class SongModel(Base):
     __tablename__ = "songs"
 
@@ -32,10 +33,18 @@ class SongModel(Base):
         index=True,
     )
 
+    audio_key: Mapped[str | None] = mapped_column(
+    String(50),
+    nullable=True,
+    unique=True,
+)
+
+
     aliases: Mapped[list["SongAliasModel"]] = relationship(
         back_populates="song",
         cascade="all, delete-orphan",
     )
+
 
 class SongAliasModel(Base):
     __tablename__ = "song_aliases"
@@ -43,7 +52,7 @@ class SongAliasModel(Base):
         UniqueConstraint(
             "song_id",
             "alias",
-            name = "uq_song_alias",
+            name="uq_song_alias",
         ),
     )
 
@@ -69,3 +78,5 @@ class SongAliasModel(Base):
     song: Mapped["SongModel"] = relationship(
         back_populates="aliases",
     )
+
+

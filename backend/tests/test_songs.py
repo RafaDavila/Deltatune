@@ -10,7 +10,7 @@ def test_list_songs(
 
     songs = response.json()
 
-    assert len(songs) == 6
+    assert len(songs) == 16
     assert songs[0] == {
         "id": 1,
         "title": "Rude Buster",
@@ -30,7 +30,7 @@ def test_filter_songs_by_chapter(
 
     songs = response.json()
 
-    assert len(songs) == 3
+    assert len(songs) == 13
     assert all(
         song["chapter"] == 1
         for song in songs
