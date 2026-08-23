@@ -14,7 +14,7 @@ from app.repositories.songs import get_song_by_id
 
 
 GAME_TIME_ZONE = ZoneInfo("America/Sao_Paulo")
-CHALLENGE_START_DATE = date(2026, 8, 11)
+CHALLENGE_START_DATE = date(2026, 8, 23)
 DAILY_ROTATION = (
     7,   # Beginning
     8,   # The Legend
@@ -75,7 +75,7 @@ def get_daily_challenge(
     )
 
     return DailyChallenge(
-        id=f"{challenge_number:03d}",
+        id=now.date().isoformat(),
         number=challenge_number,
         song=daily_song,
         next_reset_at=next_reset_at,
