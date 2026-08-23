@@ -21,3 +21,5 @@ htmlcov/
 
 # Áudios originais usados no processamento
 audio_sources/
+
+.env.docker
