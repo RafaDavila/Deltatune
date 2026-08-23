@@ -10,7 +10,7 @@ def test_list_songs(
 
     songs = response.json()
 
-    assert len(songs) == 16
+    assert len(songs) == 23
     assert songs[0] == {
         "id": 1,
         "title": "Rude Buster",
@@ -46,3 +46,21 @@ def test_reject_invalid_chapter(
     )
 
     assert response.status_code == 422
+
+def test_list_chapter_two_songs(
+    client: TestClient,
+) -> None:
+    response = client.get(
+        "/songs",
+        params={"chapter": 2},
+    )
+
+    assert response.status_code == 200
+
+    songs = response.json()
+
+    assert len(songs) == 10
+    assert all(
+        song["chapter"] == 2
+        for song in songs
+    )

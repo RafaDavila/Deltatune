@@ -119,6 +119,55 @@ SONG_SEEDS = (
         "audio_key": "track-013",
         "aliases": ("Dont Forget",),
     },
+    {
+        "id": 17,
+        "title": "My Castle Town",
+        "chapter": 2,
+        "aliases": (),
+        "audio_key": None,
+    },
+    {
+        "id": 18,
+        "title": "Cyber Battle",
+        "chapter": 2,
+        "aliases": (),
+        "audio_key": None,
+    },
+    {
+        "id": 19,
+        "title": "Smart Race",
+        "chapter": 2,
+        "aliases": (),
+        "audio_key": None,
+    },
+    {
+        "id": 20,
+        "title": "Spamton",
+        "chapter": 2,
+        "aliases": (),
+        "audio_key": None,
+    },
+    {
+        "id": 21,
+        "title": "Pandora Palace",
+        "chapter": 2,
+        "aliases": (),
+        "audio_key": None,
+    },
+    {
+        "id": 22,
+        "title": "Lost Girl",
+        "chapter": 2,
+        "aliases": (),
+        "audio_key": None,
+    },
+    {
+        "id": 23,
+        "title": "sans.",
+        "chapter": 2,
+        "aliases": ("sans",),
+        "audio_key": None,
+    },
 )
 
 

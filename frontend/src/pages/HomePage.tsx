@@ -47,8 +47,8 @@ function HomePage() {
           />
 
           <div>
-            <h2>Adivinhe o personagem</h2>
-            <p>Descubra o personagem utilizando pistas.</p>
+            <h2>MODO INFINITO</h2>
+            <p>Adivinhe quantas músicas conseguir sem esperar o próximo desafio.</p>
           </div>
 
           <span className="game-card__status">Em breve</span>

@@ -31,7 +31,22 @@ SONG_TITLES = [
     "THE WORLD REVOLVING",
     "A Town Called Hometown",
     "Don't Forget",
+    "My Castle Town",
+    "A CYBER'S WORLD?",
+    "Cyber Battle",
+    "Smart Race",
+    "Spamton",
+    "Pandora Palace",
+    "Lost Girl",
+    "Attack of the Killer Queen",
+    "BIG SHOT",
+    "sans.",
 ]
+
+SOURCE_NAMES = {
+    "A CYBER'S WORLD?": "A Cybers World",
+    "sans.": "sans",
+}
 
 
 def normalize_name(name: str) -> str:
@@ -113,13 +128,29 @@ def main() -> None:
         SONG_TITLES,
         start=1,
     ):
-        source_path = source_files.get(
-            normalize_name(song_title),
+        output_path = (
+            OUTPUT_DIR / f"track-{index:03d}.mp3"
         )
+
+        source_name = SOURCE_NAMES.get(
+            song_title,
+            song_title,
+        )
+
+        source_path = source_files.get(
+            normalize_name(source_name),
+        )
+
+        if source_path is None and output_path.exists():
+            print(
+                f"Faixa já processada: {output_path.name}",
+            )
+            processed_files += 1
+            continue
 
         if source_path is None:
             print(
-                f"Arquivo não encontrado: {song_title}",
+                f"Arquivo não encontrado: {source_name}",
             )
             continue
 
@@ -131,10 +162,6 @@ def main() -> None:
                 f"({duration:.1f} segundos)",
             )
             continue
-
-        output_path = (
-            OUTPUT_DIR / f"track-{index:03d}.mp3"
-        )
 
         print(
             f"Processando {song_title} "
