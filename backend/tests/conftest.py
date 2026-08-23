@@ -12,6 +12,9 @@ from app.main import app
 
 from scripts.seed_songs import seed_songs
 
+if settings.test_database_url is None:
+    raise RuntimeError("TEST_DATABASE_URL não foi configurada.")
+
 test_engine = create_engine(
     settings.test_database_url,
 )
