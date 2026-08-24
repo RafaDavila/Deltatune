@@ -51,11 +51,26 @@ SONG_TITLES = [
     "NORTHERNLIGHT",
     "GLACEIR",
     "BURNING EYES",
+    "Another day in hometown",
+    "Castle Funk",
+    "Dark Sanctuary",
+    "From Now On (Battle 2)",
+    "Gyaa Ha ha!",
+    "A DARK ZONE",
+    "Ever Higher",
+    "Hammer of Justice",
+    "The Third Sanctuary",
+    "GUARDIAN",
+    "Need a hand!?",
+    "The place where it rained",
+    "Neverending Night",
+    "Air Waves",
 ]
 
 SOURCE_NAMES = {
     "A CYBER'S WORLD?": "A Cybers World",
     "sans.": "sans",
+    "Need a hand!?": "Need a hand",
 }
 
 START_OFFSETS = {
@@ -177,8 +192,7 @@ def main() -> None:
             continue
 
         print(
-            f"Processando {song_title} "
-            f"-> {output_path.name}",
+            f"Processando {song_title} " f"-> {output_path.name}",
         )
 
         process_audio(
