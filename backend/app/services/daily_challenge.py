@@ -13,7 +13,7 @@ from app.models.song import SongModel
 from app.repositories.songs import get_song_by_id
 
 GAME_TIME_ZONE = ZoneInfo("America/Sao_Paulo")
-CHALLENGE_START_DATE = date(2026, 8, 23)
+CHALLENGE_START_DATE = date(2026, 8, 24)
 DAILY_ROTATION = (
     1, 11, 21, 20, 2, 40, 49, 7, 54, 10,
     25, 42, 51, 6, 26, 23, 43, 28, 34, 33,
