@@ -67,6 +67,17 @@ DAILY_ROTATION = (
     46,  # The place where it rained
     47,  # Neverending Night
     48,  # Air Waves
+    # Capítulo 5
+    49,  # Festival
+    50,  # Garden of Hopes and Dreams
+    51,  # Who might you be?
+    52,  # Petal Dance
+    53,  # Sunset of Seven Suns
+    54,  # Flower King
+    55,  # Flower Castle
+    56,  # Cutie Mew Mew Magic
+    57,  # Running Sky
+    58,  # Flower Man
 )
 
 

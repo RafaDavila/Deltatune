@@ -65,16 +65,28 @@ SONG_TITLES = [
     "The place where it rained",
     "Neverending Night",
     "Air Waves",
+    "Festival",
+    "Garden of Hopes and Dreams",
+    "Who might you be?",
+    "Petal Dance",
+    "Sunset of Seven Suns",
+    "Flower King",
+    "Flower Castle",
+    "Cutie Mew Mew Magic",
+    "Running Sky",
+    "Flower Man",
 ]
 
 SOURCE_NAMES = {
     "A CYBER'S WORLD?": "A Cybers World",
     "sans.": "sans",
     "Need a hand!?": "Need a hand",
+    "Who might you be?": "Who might you be",
 }
 
 START_OFFSETS = {
     "Raise Up Your Bat": 8,
+    "Flower King": 8,
 }
 
 
