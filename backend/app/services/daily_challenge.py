@@ -15,69 +15,12 @@ from app.repositories.songs import get_song_by_id
 GAME_TIME_ZONE = ZoneInfo("America/Sao_Paulo")
 CHALLENGE_START_DATE = date(2026, 8, 23)
 DAILY_ROTATION = (
-    # Capítulo 1
-    7,  # Beginning
-    8,  # The Legend
-    9,  # Lancer
-    1,  # Rude Buster
-    10,  # Empty Town
-    2,  # Field of Hopes and Dreams
-    11,  # Scarlet Forest
-    12,  # Vs. Susie
-    13,  # Rouxls Kaard
-    14,  # Chaos King
-    3,  # The World Revolving
-    15,  # A Town Called Hometown
-    16,  # Don't Forget
-    # Capítulo 2
-    17,  # My Castle Town
-    4,  # A Cyber's World?
-    18,  # Cyber Battle
-    19,  # Smart Race
-    20,  # Spamton
-    21,  # Pandora Palace
-    22,  # Lost Girl
-    5,  # Attack of the Killer Queen
-    6,  # BIG SHOT
-    23,  # sans.
-    # Capítulo 3
-    24,  # Flashback
-    25,  # Ruder Buster
-    26,  # Welcome to the Green Room
-    27,  # Raise Up Your Bat
-    28,  # Glowing Snow
-    29,  # TV WORLD
-    30,  # It's TV Time!
-    31,  # Black Knife
-    32,  # NORTHERNLIGHT
-    33,  # GLACEIR
-    34,  # BURNING EYES
-    # Capítulo 4
-    35,  # Another day in hometown
-    36,  # Castle Funk
-    37,  # Dark Sanctuary
-    38,  # From Now On (Battle 2)
-    39,  # Gyaa Ha ha!
-    40,  # A DARK ZONE
-    41,  # Ever Higher
-    42,  # Hammer of Justice
-    43,  # The Third Sanctuary
-    44,  # GUARDIAN
-    45,  # Need a hand!?
-    46,  # The place where it rained
-    47,  # Neverending Night
-    48,  # Air Waves
-    # Capítulo 5
-    49,  # Festival
-    50,  # Garden of Hopes and Dreams
-    51,  # Who might you be?
-    52,  # Petal Dance
-    53,  # Sunset of Seven Suns
-    54,  # Flower King
-    55,  # Flower Castle
-    56,  # Cutie Mew Mew Magic
-    57,  # Running Sky
-    58,  # Flower Man
+    1, 11, 21, 20, 2, 40, 49, 7, 54, 10,
+    25, 42, 51, 6, 26, 23, 43, 28, 34, 33,
+    36, 37, 12, 9, 53, 16, 48, 35, 14, 55,
+    18, 24, 17, 45, 19, 47, 41, 52, 56, 57,
+    39, 5, 15, 58, 29, 13, 46, 38, 3, 32,
+    50, 30, 8, 27, 4, 44, 22, 31,
 )
 
 

@@ -2,6 +2,7 @@ from fastapi.testclient import TestClient
 from uuid import uuid4
 from app.services.daily_challenge import (
     get_daily_challenge,
+    DAILY_ROTATION,
 )
 
 from sqlalchemy.orm import Session
@@ -348,3 +349,10 @@ def test_get_daily_audio(
         == "audio/mpeg"
     )
     assert len(response.content) > 0
+
+def test_daily_rotation_contains_every_song_once() -> None:
+    assert len(DAILY_ROTATION) == 58
+    assert len(set(DAILY_ROTATION)) == 58
+    assert set(DAILY_ROTATION) == set(
+        range(1,59),
+    )
