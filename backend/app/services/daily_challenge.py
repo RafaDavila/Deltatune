@@ -42,6 +42,18 @@ DAILY_ROTATION = (
     5,   # Attack of the Killer Queen
     6,   # BIG SHOT
     23,  # sans.
+        # Capítulo 3
+    24,  # Flashback
+    25,  # Ruder Buster
+    26,  # Welcome to the Green Room
+    27,  # Raise Up Your Bat
+    28,  # Glowing Snow
+    29,  # TV WORLD
+    30,  # It's TV Time!
+    31,  # Black Knife
+    32,  # NORTHERNLIGHT
+    33,  # GLACEIR
+    34,  # BURNING EYES
 )
 
 

@@ -2,7 +2,6 @@ from pathlib import Path
 import subprocess
 import sys
 
-
 CLIP_DURATION = 16
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
@@ -41,6 +40,17 @@ SONG_TITLES = [
     "Attack of the Killer Queen",
     "BIG SHOT",
     "sans.",
+    "Flashback",
+    "Ruder Buster",
+    "Welcome to the Green Room",
+    "Raise Up Your Bat",
+    "Glowing Snow",
+    "TV WORLD",
+    "It's TV Time!",
+    "Black Knife",
+    "NORTHERNLIGHT",
+    "GLACEIR",
+    "BURNING EYES",
 ]
 
 SOURCE_NAMES = {
@@ -48,13 +58,13 @@ SOURCE_NAMES = {
     "sans.": "sans",
 }
 
+START_OFFSETS = {
+    "Raise Up Your Bat": 8,
+}
+
 
 def normalize_name(name: str) -> str:
-    return (
-        name.casefold()
-        .replace("’", "'")
-        .strip()
-    )
+    return name.casefold().replace("’", "'").strip()
 
 
 def get_audio_duration(audio_path: Path) -> float:
@@ -80,12 +90,13 @@ def get_audio_duration(audio_path: Path) -> float:
 
 
 def process_audio(
-    source_path: Path,
-    output_path: Path,
+    source_path: Path, output_path: Path, start_offset: float = 0
 ) -> None:
     command = [
         "ffmpeg",
         "-y",
+        "-ss",
+        str(start_offset),
         "-i",
         str(source_path),
         "-t",
@@ -115,11 +126,7 @@ def main() -> None:
     source_files = {
         normalize_name(file.stem): file
         for file in INPUT_DIR.iterdir()
-        if (
-            file.is_file()
-            and file.suffix.casefold()
-            in SUPPORTED_EXTENSIONS
-        )
+        if (file.is_file() and file.suffix.casefold() in SUPPORTED_EXTENSIONS)
     }
 
     processed_files = 0
@@ -128,9 +135,7 @@ def main() -> None:
         SONG_TITLES,
         start=1,
     ):
-        output_path = (
-            OUTPUT_DIR / f"track-{index:03d}.mp3"
-        )
+        output_path = OUTPUT_DIR / f"track-{index:03d}.mp3"
 
         source_name = SOURCE_NAMES.get(
             song_title,
@@ -139,6 +144,11 @@ def main() -> None:
 
         source_path = source_files.get(
             normalize_name(source_name),
+        )
+
+        start_offset = START_OFFSETS.get(
+            song_title,
+            0,
         )
 
         if source_path is None and output_path.exists():
@@ -156,10 +166,13 @@ def main() -> None:
 
         duration = get_audio_duration(source_path)
 
-        if duration < CLIP_DURATION:
+        required_duration = start_offset + CLIP_DURATION
+
+        if duration < required_duration:
             print(
                 f"Áudio muito curto: {source_path.name} "
-                f"({duration:.1f} segundos)",
+                f"({duration:.1f} segundos)"
+                f"necessários {required_duration:.1f})",
             )
             continue
 
@@ -171,6 +184,7 @@ def main() -> None:
         process_audio(
             source_path,
             output_path,
+            start_offset,
         )
 
         processed_files += 1
