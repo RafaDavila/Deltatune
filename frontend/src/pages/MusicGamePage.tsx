@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent, type SubmitEvent, } from "react";
-import { FaVolumeHigh, FaVolumeXmark } from "react-icons/fa6";
 import { Link } from "react-router";
 import deltatuneLogo from "../assets/deltatune-logo.png";
-import heartIcon from "../assets/heart.png";
 import SiteFooter from "../components/SiteFooter";
 import TutorialModal from "../components/TutorialModal";
 import ResultModal from "../components/ResultModal";
 import { getDailyAudioUrl, getSongs, resumeDailyChallenge, skipDailyGuess, startDailyChallenge, submitDailyGuess, type DailyChallengeResponse, } from "../services/deltatuneApi";
+import LivesDisplay from "../components/LivesDisplay";
+import type { AttemptResult } from "../types/game";
+import AttemptList from "../components/AttemptList";
+import AudioPlayer from "../components/AudioPlayer";
 
 const DEFAULT_ATTEMPT_DURATIONS = [
   0.5,
@@ -22,10 +24,6 @@ const DEFAULT_ATTEMPT_DURATIONS = [
 const GAME_SESSION_STORAGE_KEY =
   "deltatune-daily-session";
 
-type AttemptResult = {
-  answer: string;
-  status: "skipped" | "wrong" | "correct";
-};
 
 function formatCountdown(
   remainingMilliseconds: number,
@@ -109,10 +107,10 @@ function MusicGamePage() {
   const attemptDurations =
     dailyChallenge?.attemptDurations ??
     DEFAULT_ATTEMPT_DURATIONS;
-  
+
   const dailyAudioUrl = dailyChallenge
     ? getDailyAudioUrl(
-        dailyChallenge.challengeId,
+      dailyChallenge.challengeId,
     )
     : undefined;
 
@@ -607,7 +605,7 @@ function MusicGamePage() {
             ? `${String(
               dailyChallenge.challengeNumber,
             ).padStart(2, "0")}`
-          : "CARREGANDO"}
+            : "CARREGANDO"}
           </strong>
         </div>
         <p
@@ -618,106 +616,30 @@ function MusicGamePage() {
           <strong>{resetCountdown}</strong>
         </p>
 
-        <div className="lives">
-          <div
-            className="lives__hearts"
-            aria-label={`${remainingLives} de 6 tentativas restantes`}
-          >
-            {attemptDurations.map((duration, index) => (
-              <img
-                key={duration}
-                className={
-                  index >= remainingLives
-                    ? "lives__heart lives__heart--lost"
-                    : "lives__heart"
-                }
-                src={heartIcon}
-                alt=""
-                aria-hidden="true"
-              />
-            ))}
-          </div>
+        <LivesDisplay
+          remainingLives={remainingLives}
+          maximumLives={attemptDurations.length}
+        ></LivesDisplay>
 
-          <p>{remainingLives} de 6 tentativas restantes</p>
-        </div>
+        <AttemptList
+          attemptDurations={attemptDurations}
+          attemptResults={attemptResults}
+        ></AttemptList>
 
-        <div className="attempt-list">
-          {attemptDurations.map((duration, index) => (
-            <div
-              key={duration}
-              className={`attempt-slot attempt-slot--${attemptResults[index]?.status ?? "empty"
-                }`}
-            >
-              <span className="attempt-slot__number">{index + 1}</span>
-              <span
-                className={`attempt-slot__result attempt-slot__result--${attemptResults[index]?.status ?? "empty"
-                  }`}
-              >
-                {attemptResults[index]?.answer ?? ""}
-              </span>
-              <span className="attempt-slot__duration">
-                {duration.toString().replace(".", ",")}s
-              </span>
-            </div>
-          ))}
-        </div>
-
-        <section className="audio-player">
-          <audio ref={audioRef} src={dailyAudioUrl} preload="auto" onEnded={stopAudio} />
-
-          <div className="audio-player__info">
-            <span>Trecho liberado</span>
-            <strong>
-              {unlockedDuration.toString().replace(".", ",")} {unlockedDuration <= 1 ? "segundo" : "segundos"}
-            </strong>
-          </div>
-
-          <div className="audio-timeline" aria-label="Primeiro trecho de seis liberado">
-            {attemptDurations.map((duration, index) => (
-              <span
-                key={duration}
-                className={
-                  gameFinished || index <= currentAttempt
-                    ? "audio-timeline__segment audio-timeline__segment--active"
-                    : "audio-timeline__segment"
-                }
-              />
-            ))}
-          </div>
-
-          {challengeError && (
-            <p className="challenge-error">
-              {challengeError}
-            </p>
-          )}
-
-          <button
-            className="play-button"
-            type="button"
-            aria-label="Reproduzir trecho da música"
-            onClick={handlePlay}
-          >
-            <img src={heartIcon} alt="" aria-hidden="true" />
-            <span>{isPlaying ? "Tocando..." : "Reproduzir"}</span>
-          </button>
-
-          <label className="volume-control">
-            <span className="volume-control__icon" aria-hidden="true">
-              {volume === 0 ? <FaVolumeXmark /> : <FaVolumeHigh />}
-            </span>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.05"
-              value={volume}
-              aria-label="Volume do áudio"
-              aria-valuetext={`${Math.round(volume * 100)}%`}
-              onChange={(event) => setVolume(Number(event.target.value))}
-            />
-            <strong>{Math.round(volume * 100)}%</strong>
-          </label>
-        </section>
+        <AudioPlayer
+          audioRef={audioRef}
+          audioUrl={dailyAudioUrl}
+          attemptDurations={attemptDurations}
+          currentAttempt={currentAttempt}
+          unlockedDuration={unlockedDuration}
+          gameFinished={gameFinished}
+          isPlaying={isPlaying}
+          volume={volume}
+          challengeError={challengeError}
+          onPlay={handlePlay}
+          onStop={stopAudio}
+          onVolumeChange={setVolume}
+        />
 
         <form className="guess-form" onSubmit={handleSubmit}>
           <label className="guess-form__label" htmlFor="song-guess">
@@ -728,7 +650,7 @@ function MusicGamePage() {
               {guessError}
             </p>
           )}
-          {songCatalogError &&(
+          {songCatalogError && (
             <p
               className="guess-form__error"
               role="alert"
