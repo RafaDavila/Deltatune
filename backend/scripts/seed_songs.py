@@ -32,21 +32,21 @@ SONG_SEEDS = (
         "id": 4,
         "title": "A Cyber's World?",
         "chapter": 2,
-        "audio_key": None,
+        "audio_key": "track-015",
         "aliases": ("A Cybers World",),
     },
     {
         "id": 5,
         "title": "Attack of the Killer Queen",
         "chapter": 2,
-        "audio_key": None,
+        "audio_key": "track-021",
         "aliases": (),
     },
     {
         "id": 6,
         "title": "BIG SHOT",
         "chapter": 2,
-        "audio_key": None,
+        "audio_key": "track-022",
         "aliases": ("Big Shot",),
     },
     {
@@ -124,49 +124,49 @@ SONG_SEEDS = (
         "title": "My Castle Town",
         "chapter": 2,
         "aliases": (),
-        "audio_key": None,
+        "audio_key": "track-014",
     },
     {
         "id": 18,
         "title": "Cyber Battle",
         "chapter": 2,
         "aliases": (),
-        "audio_key": None,
+        "audio_key": "track-016",
     },
     {
         "id": 19,
         "title": "Smart Race",
         "chapter": 2,
         "aliases": (),
-        "audio_key": None,
+        "audio_key": "track-017",
     },
     {
         "id": 20,
         "title": "Spamton",
         "chapter": 2,
         "aliases": (),
-        "audio_key": None,
+        "audio_key": "track-018",
     },
     {
         "id": 21,
         "title": "Pandora Palace",
         "chapter": 2,
         "aliases": (),
-        "audio_key": None,
+        "audio_key": "track-019",
     },
     {
         "id": 22,
         "title": "Lost Girl",
         "chapter": 2,
         "aliases": (),
-        "audio_key": None,
+        "audio_key": "track-020",
     },
     {
         "id": 23,
         "title": "sans.",
         "chapter": 2,
         "aliases": ("sans",),
-        "audio_key": None,
+        "audio_key": "track-023",
     },
 )
 
@@ -189,7 +189,8 @@ def seed_songs(db: Session) -> None:
         else:
             song.title = song_data["title"]
             song.chapter = song_data["chapter"]
-            song.audio_key = song_data["audio_key"]
+
+        song.audio_key = song_data["audio_key"]
 
         existing_aliases = {song_alias.alias for song_alias in song.aliases}
 

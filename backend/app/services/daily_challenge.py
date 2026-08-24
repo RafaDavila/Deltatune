@@ -16,6 +16,7 @@ from app.repositories.songs import get_song_by_id
 GAME_TIME_ZONE = ZoneInfo("America/Sao_Paulo")
 CHALLENGE_START_DATE = date(2026, 8, 23)
 DAILY_ROTATION = (
+    # Capítulo 1
     7,   # Beginning
     8,   # The Legend
     9,   # Lancer
@@ -29,6 +30,18 @@ DAILY_ROTATION = (
     3,   # The World Revolving
     15,  # A Town Called Hometown
     16,  # Don't Forget
+
+    # Capítulo 2
+    17,  # My Castle Town
+    4,   # A Cyber's World?
+    18,  # Cyber Battle
+    19,  # Smart Race
+    20,  # Spamton
+    21,  # Pandora Palace
+    22,  # Lost Girl
+    5,   # Attack of the Killer Queen
+    6,   # BIG SHOT
+    23,  # sans.
 )
 
 
