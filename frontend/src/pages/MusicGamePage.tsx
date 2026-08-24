@@ -602,10 +602,12 @@ function MusicGamePage() {
             : "Carregando música do dia"
         }>
 
-          <span>Música do dia</span>
+          <span>Música do dia:</span>
           <strong>{dailyChallenge
-            ? `#${dailyChallenge.challengeId}`
-            : "Carregando..."}
+            ? `${String(
+              dailyChallenge.challengeNumber,
+            ).padStart(2, "0")}`
+          : "CARREGANDO"}
           </strong>
         </div>
         <p
