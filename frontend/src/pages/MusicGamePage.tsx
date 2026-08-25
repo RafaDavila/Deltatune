@@ -555,7 +555,9 @@ function MusicGamePage() {
       );
 
       setGuessError(
-        "Não foi possível validar o palpite. Tente novamente.",
+        error instanceof Error
+        ? error.message
+        :"Não foi possível validar o palpite. Tente novamente.",
       );
     } finally {
       setIsSubmittingGuess(false);

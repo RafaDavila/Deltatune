@@ -356,3 +356,47 @@ def test_daily_rotation_contains_every_song_once() -> None:
     assert set(DAILY_ROTATION) == set(
         range(1,59),
     )
+
+def test_reject_repeated_wrong_guess(
+    client: TestClient,
+) -> None:
+    session_id, challenge_id = start_session(
+        client,
+    )
+
+    request_body = {
+        "sessionId": session_id,
+        "challengeId": challenge_id,
+        "answer": "Resposta certamente incorreta",
+    }
+
+    first_response = client.post(
+        "/challenges/daily/guess",
+        json=request_body,
+    )
+
+    repeated_response = client.post(
+        "/challenges/daily/guess",
+        json={
+            **request_body,
+            "answer": (
+                "  resposta   certamente "
+                "incorreta  "
+            ),
+        },
+    )
+
+    assert first_response.status_code == 200
+    assert repeated_response.status_code == 409
+    assert repeated_response.json()["detail"] == (
+        "Você já tentou essa música."
+    )
+
+    resume_response = client.get(
+        f"/challenges/daily/session/{session_id}",
+    )
+
+    resumed_game = resume_response.json()
+
+    assert len(resumed_game["attempts"]) == 1
+    assert resumed_game["remainingLives"] == 5

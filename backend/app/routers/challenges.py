@@ -232,6 +232,19 @@ def submit_daily_guess(
         guess.answer,
     )
 
+    already_guessed = any(
+        attempt.status != "skipped"
+        and normalize_answer(attempt.answer) == normalized_guess
+        for attempt in game_session.attempts
+    )
+
+
+    if already_guessed:
+        raise HTTPException(
+        status_code=status.HTTP_409_CONFLICT,
+        detail="Você já tentou essa música.",
+    )
+
     is_correct = any(
         normalized_guess == normalize_answer(answer) for answer in accepted_answers
     )

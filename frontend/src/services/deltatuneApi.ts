@@ -94,7 +94,14 @@ export async function submitDailyGuess(
   );
 
   if (!response.ok) {
+    const errorData = await response
+    .json()
+    .catch(() => null) as {
+      detail?:string;
+    } | null;
+
     throw new Error(
+        errorData?.detail ??
       "Não foi possível validar o palpite.",
     );
   }
