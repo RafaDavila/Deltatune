@@ -10,6 +10,9 @@ from app.routers.challenges import (
 from app.routers.songs import (
     router as songs_router,
 )
+from app.routers.infinite_games import (
+    router as infinite_games_router,
+)
 
 
 app = FastAPI(
@@ -33,6 +36,7 @@ app.add_middleware(
 
 app.include_router(challenges_router)
 app.include_router(songs_router)
+app.include_router(infinite_games_router)
 
 
 @app.get("/health", tags=["Health"])

@@ -20,6 +20,7 @@ from sqlalchemy.orm import (
 
 from app.database import Base
 from app.models.game_session import MAX_ATTEMPTS
+from app.models.song import SongModel
 
 
 class InfiniteRunModel(Base):
@@ -115,6 +116,8 @@ class InfiniteRoundModel(Base):
             back_populates="rounds",
         )
     )
+
+    song: Mapped["SongModel"] = relationship()
 
     attempts: Mapped[
         list["InfiniteAttemptModel"]
