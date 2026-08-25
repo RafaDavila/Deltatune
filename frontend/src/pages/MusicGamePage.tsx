@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type SubmitEvent, } from "react";
+import { useEffect, useState, type SubmitEvent, } from "react";
 import { Link } from "react-router";
 import deltatuneLogo from "../assets/deltatune-logo.png";
 import SiteFooter from "../components/SiteFooter";
@@ -10,6 +10,7 @@ import type { AttemptResult } from "../types/game";
 import AttemptList from "../components/AttemptList";
 import AudioPlayer from "../components/AudioPlayer";
 import GuessForm from "../components/GuessForm";
+import useAudioClip from "../hooks/useAudioClip";
 
 const DEFAULT_ATTEMPT_DURATIONS = [
   0.5,
@@ -84,22 +85,7 @@ function MusicGamePage() {
   const [isTutorialOpen, setIsTutorialOpen] = useState(
     () => localStorage.getItem("deltatune-hide-tutorial") !== "true",
   );
-  const [volume, setVolume] = useState(() => {
-    const savedVolume = localStorage.getItem("deltatune-volume");
-
-    if (savedVolume === null) {
-      return 0.6;
-    }
-
-    const parsedVolume = Number(savedVolume);
-    return Number.isFinite(parsedVolume)
-      ? Math.min(1, Math.max(0, parsedVolume))
-      : 0.6;
-  });
-  const [isPlaying, setIsPlaying] = useState(false);
   const [attemptResults, setAttemptResults] = useState<AttemptResult[]>([]);
-  const audioRef = useRef<HTMLAudioElement>(null);
-  const stopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const attemptDurations =
     dailyChallenge?.attemptDurations ??
     DEFAULT_ATTEMPT_DURATIONS;
@@ -136,11 +122,23 @@ function MusicGamePage() {
   const remainingLives = attemptDurations.length - failedAttempts;
   const hasWon = attemptResults.some((result) => result.status === "correct");
   const gameFinished = hasWon || failedAttempts === attemptDurations.length;
-
   const maximumDuration = attemptDurations[attemptDurations.length - 1];
   const unlockedDuration = gameFinished
     ? maximumDuration
     : attemptDurations[currentAttempt];
+
+  const {
+    audioRef,
+    volume,
+    setVolume,
+    isPlaying,
+    playAudio: handlePlay,
+    stopAudio,
+  } = useAudioClip({
+    audioSource: dailyAudioUrl,
+    clipDuration: unlockedDuration,
+    disabled: isGameUnavailable,
+  });
   useEffect(() => {
     let isCancelled = false;
 
@@ -186,21 +184,6 @@ function MusicGamePage() {
       clearTimeout(resultTimer);
     };
   }, [gameFinished]);
-  function stopAudio() {
-    if (stopTimerRef.current) {
-      clearTimeout(stopTimerRef.current);
-      stopTimerRef.current = null;
-    }
-
-    const audio = audioRef.current;
-
-    if (audio) {
-      audio.pause();
-      audio.currentTime = 0;
-    }
-
-    setIsPlaying(false);
-  }
 
   useEffect(() => {
     const intervalid = window.setInterval(() => {
@@ -211,46 +194,7 @@ function MusicGamePage() {
     }
   }, []);
 
-  useEffect(() => {
-    const audio = audioRef.current;
 
-    if (audio) {
-      audio.volume = volume;
-    }
-
-    localStorage.setItem("deltatune-volume", volume.toString());
-  }, [volume]);
-
-  useEffect(() => {
-    const audio = audioRef.current;
-
-    return () => {
-      if (stopTimerRef.current) {
-        clearTimeout(stopTimerRef.current);
-      }
-
-      audio?.pause();
-    };
-  }, []);
-
-  async function handlePlay() {
-    const audio = audioRef.current;
-
-    if (!audio || isGameUnavailable) {
-      return;
-    }
-
-    stopAudio();
-
-    try {
-      await audio.play();
-      setIsPlaying(true);
-      stopTimerRef.current = setTimeout(stopAudio, unlockedDuration * 1000);
-    } catch (error) {
-      console.error("Não foi possível reproduzir o áudio:", error);
-      stopAudio();
-    }
-  }
 
   useEffect(() => {
     if (!dailyChallenge || !isProgressLoaded) {
@@ -470,8 +414,8 @@ function MusicGamePage() {
 
       setGuessError(
         error instanceof Error
-        ? error.message
-        :"Não foi possível validar o palpite. Tente novamente.",
+          ? error.message
+          : "Não foi possível validar o palpite. Tente novamente.",
       );
     } finally {
       setIsSubmittingGuess(false);
@@ -557,21 +501,21 @@ function MusicGamePage() {
           onVolumeChange={setVolume}
         />
 
-      
+
         <GuessForm
-        guess={guess}
-        songTitles={songTitles}
-        guessError={guessError}
-        songCatalogError={songCatalogError}
-        disabled={
-          gameFinished ||
-          isGameUnavailable || 
-          isSubmittingGuess
-        }
-        isSubmitting={isSubmittingGuess}
-        onGuessChange={setGuess}
-        onSkip={handleSkip}
-        onSubmit={handleSubmit}
+          guess={guess}
+          songTitles={songTitles}
+          guessError={guessError}
+          songCatalogError={songCatalogError}
+          disabled={
+            gameFinished ||
+            isGameUnavailable ||
+            isSubmittingGuess
+          }
+          isSubmitting={isSubmittingGuess}
+          onGuessChange={setGuess}
+          onSkip={handleSkip}
+          onSubmit={handleSubmit}
         ></GuessForm>
 
 
