@@ -54,3 +54,12 @@ def client() -> Generator[TestClient, None, None]:
         yield test_client
 
     app.dependency_overrides.pop(get_db, None)
+
+@pytest.fixture 
+def db_session() -> Generator[
+    Session,
+    None,
+    None,
+]:
+    with TestingSessionLocal() as session: 
+        yield session

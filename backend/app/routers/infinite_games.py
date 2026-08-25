@@ -25,6 +25,27 @@ from app.services.audio_files import (
     find_audio_file,
 )
 
+from app.repositories.infinite_games import (
+    add_infinite_attempt,
+    create_infinite_run,
+    get_infinite_round,
+    get_infinite_run,
+)
+from app.schemas.infinite_game import (
+    InfiniteGuessRequest,
+    InfiniteGuessResponse,
+    InfiniteSkipRequest,
+    InfiniteSkipResponse,
+    StartInfiniteGameResponse,
+)
+from app.services.answer_normalization import (
+    normalize_answer,
+)
+from app.models.infinite_game import (
+    InfiniteRoundModel,
+    InfiniteRunModel,
+)
+
 router = APIRouter(
     prefix="/infinite",
     tags=["Infinite Game"],
@@ -34,6 +55,53 @@ DatabaseSession = Annotated[
     Session,
     Depends(get_db),
 ]
+
+def get_validated_infinite_round(
+    db: Session,
+    run_id: UUID,
+    round_id: UUID,
+) -> tuple[
+    InfiniteRunModel,
+    InfiniteRoundModel,
+]:
+    game_run = get_infinite_run(
+        db,
+        run_id,
+    )
+
+    if game_run is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=(
+                "Sessão do modo infinito "
+                "não encontrada."
+            ),
+        )
+
+    game_round = get_infinite_round(
+        db,
+        round_id,
+    )
+
+    if game_round is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=(
+                "Rodada do modo infinito "
+                "não encontrada."
+            ),
+        )
+
+    if game_round.run_id != game_run.id:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "A rodada não pertence "
+                "a esta sessão."
+            ),
+        )
+
+    return game_run, game_round
 
 ATTEMPT_DURATIONS = [
     0.5,
@@ -86,42 +154,11 @@ def read_infinite_round_audio(
     round_id: UUID,
     db: DatabaseSession,
 ) -> FileResponse:
-    game_run = get_infinite_run(
+    _, game_round = get_validated_infinite_round(
         db,
         run_id,
-    )
-
-    if game_run is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=(
-                "Sessão do modo infinito "
-                "não encontrada."
-            ),
-        )
-
-    game_round = get_infinite_round(
-        db,
         round_id,
     )
-
-    if game_round is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=(
-                "Rodada do modo infinito "
-                "não encontrada."
-            ),
-        )
-
-    if game_round.run_id != game_run.id:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=(
-                "A rodada não pertence "
-                "a esta sessão."
-            ),
-        )
 
     audio_key = game_round.song.audio_key
 
@@ -148,4 +185,146 @@ def read_infinite_round_audio(
     return FileResponse(
         path=audio_path,
         media_type="audio/mpeg",
+    )
+
+@router.post(
+    "/guess",
+    response_model=InfiniteGuessResponse,
+)
+def submit_infinite_guess(
+    guess: InfiniteGuessRequest,
+    db: DatabaseSession,
+) -> InfiniteGuessResponse:
+    game_run, game_round = (
+        get_validated_infinite_round(
+            db,
+            guess.run_id,
+            guess.round_id,
+        )
+    )
+
+    if game_round.finished:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "Esta rodada já foi finalizada."
+            ),
+        )
+
+    normalized_guess = normalize_answer(
+        guess.answer,
+    )
+
+    already_guessed = any(
+        attempt.status != "skipped"
+        and normalize_answer(attempt.answer)
+        == normalized_guess
+        for attempt in game_round.attempts
+    )
+
+    if already_guessed:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "Você já tentou essa música."
+            ),
+        )
+
+    accepted_answers = (
+        game_round.song.title,
+        *(
+            song_alias.alias
+            for song_alias
+            in game_round.song.aliases
+        ),
+    )
+
+    is_correct = any(
+        normalized_guess
+        == normalize_answer(answer)
+        for answer in accepted_answers
+    )
+
+    add_infinite_attempt(
+        db,
+        game_run,
+        game_round,
+        answer=guess.answer,
+        status=(
+            "correct"
+            if is_correct
+            else "wrong"
+        ),
+    )
+
+    return InfiniteGuessResponse(
+        run_id=game_run.id,
+        round_id=game_round.id,
+        correct=is_correct,
+        won=game_round.won,
+        game_finished=game_round.finished,
+        attempts_used=len(game_round.attempts),
+        remaining_lives=(
+            game_round.remaining_lives
+        ),
+        current_streak=(
+            game_run.current_streak
+        ),
+        song_title=(
+            game_round.song.title
+            if game_round.finished
+            else None
+        ),
+    )
+
+@router.post(
+    "/skip",
+    response_model=InfiniteSkipResponse,
+)
+def skip_infinite_guess(
+    skip: InfiniteSkipRequest,
+    db: DatabaseSession,
+) -> InfiniteSkipResponse:
+    game_run, game_round = (
+        get_validated_infinite_round(
+            db,
+            skip.run_id,
+            skip.round_id,
+        )
+    )
+
+    if game_round.finished:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "Esta rodada já foi finalizada."
+            ),
+        )
+
+    add_infinite_attempt(
+        db,
+        game_run,
+        game_round,
+        answer="Pulou",
+        status="skipped",
+    )
+
+    return InfiniteSkipResponse(
+        run_id=game_run.id,
+        round_id=game_round.id,
+        skipped=True,
+        won=game_round.won,
+        game_finished=game_round.finished,
+        attempts_used=len(game_round.attempts),
+        remaining_lives=(
+            game_round.remaining_lives
+        ),
+        current_streak=(
+            game_run.current_streak
+        ),
+        song_title=(
+            game_round.song.title
+            if game_round.finished
+            else None
+        ),
     )

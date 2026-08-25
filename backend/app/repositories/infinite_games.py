@@ -6,8 +6,16 @@ from sqlalchemy.orm import Session
 from app.models.infinite_game import (
     InfiniteRoundModel,
     InfiniteRunModel,
+    InfiniteAttemptModel,
 )
 from app.models.song import SongModel
+from typing import Literal
+
+InfiniteAttemptStatus = Literal[
+    "skipped",
+    "wrong",
+    "correct",
+]
 
 
 def create_infinite_run(
@@ -71,3 +79,34 @@ def get_infinite_round(
         InfiniteRoundModel,
         round_id,
     )
+
+def add_infinite_attempt(
+    db: Session,
+    game_run: InfiniteRunModel,
+    game_round: InfiniteRoundModel,
+    answer: str,
+    status: InfiniteAttemptStatus,
+) -> InfiniteAttemptModel:
+    attempt = InfiniteAttemptModel(
+        attempt_number=(
+            len(game_round.attempts) + 1
+        ),
+        answer=answer,
+        status=status,
+    )
+
+    game_round.attempts.append(attempt)
+
+    if status == "correct":
+        game_run.current_streak += 1
+    elif game_round.remaining_lives == 0:
+        game_run.current_streak = 0
+
+    db.add(attempt)
+    db.commit()
+
+    db.refresh(attempt)
+    db.refresh(game_run)
+    db.refresh(game_round)
+
+    return attempt

@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict, field_validator
 
 
 class StartInfiniteGameResponse(BaseModel):
@@ -31,3 +31,97 @@ class StartInfiniteGameResponse(BaseModel):
     current_streak: int = Field(
         serialization_alias="currentStreak",
     )
+
+class InfiniteRoundRequest(BaseModel):
+    model_config = ConfigDict(
+        populate_by_name=True,
+    )
+
+    run_id: UUID = Field(
+        alias="runId",
+    )
+
+    round_id: UUID = Field(
+        alias="roundId",
+    )
+
+
+class InfiniteGuessRequest(
+    InfiniteRoundRequest,
+):
+    answer: str = Field(
+        min_length=1,
+        max_length=120,
+    )
+
+    @field_validator("answer")
+    @classmethod
+    def validate_answer(
+        cls,
+        value: str,
+    ) -> str:
+        cleaned_answer = " ".join(
+            value.split(),
+        )
+
+        if not cleaned_answer:
+            raise ValueError(
+                "O palpite não pode ficar vazio.",
+            )
+
+        return cleaned_answer
+
+
+class InfiniteSkipRequest(
+    InfiniteRoundRequest,
+):
+    pass
+
+
+class InfiniteRoundResultResponse(BaseModel):
+    model_config = ConfigDict(
+        populate_by_name=True,
+    )
+
+    run_id: UUID = Field(
+        alias="runId",
+    )
+
+    round_id: UUID = Field(
+        alias="roundId",
+    )
+
+    won: bool
+
+    game_finished: bool = Field(
+        alias="gameFinished",
+    )
+
+    attempts_used: int = Field(
+        alias="attemptsUsed",
+    )
+
+    remaining_lives: int = Field(
+        alias="remainingLives",
+    )
+
+    current_streak: int = Field(
+        alias="currentStreak",
+    )
+
+    song_title: str | None = Field(
+        default=None,
+        alias="songTitle",
+    )
+
+
+class InfiniteGuessResponse(
+    InfiniteRoundResultResponse,
+):
+    correct: bool
+
+
+class InfiniteSkipResponse(
+    InfiniteRoundResultResponse,
+):
+    skipped: bool

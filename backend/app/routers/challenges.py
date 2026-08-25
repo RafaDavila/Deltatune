@@ -27,6 +27,9 @@ from fastapi.responses import FileResponse
 from app.services.audio_files import (
     find_audio_file,
 )
+from app.services.answer_normalization import(
+    normalize_answer,
+)
 
 router = APIRouter(
     prefix="/challenges",
@@ -107,11 +110,6 @@ def read_daily_audio(
         path=audio_path,
         media_type="audio/mpeg",
     )
-
-
-def normalize_answer(answer: str) -> str:
-    return " ".join(answer.casefold().split())
-
 
 @router.post(
     "/daily/start",
