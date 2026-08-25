@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent, type SubmitEvent, } from "react";
+import { useEffect, useRef, useState, type SubmitEvent, } from "react";
 import { Link } from "react-router";
 import deltatuneLogo from "../assets/deltatune-logo.png";
 import SiteFooter from "../components/SiteFooter";
@@ -9,6 +9,7 @@ import LivesDisplay from "../components/LivesDisplay";
 import type { AttemptResult } from "../types/game";
 import AttemptList from "../components/AttemptList";
 import AudioPlayer from "../components/AudioPlayer";
+import GuessForm from "../components/GuessForm";
 
 const DEFAULT_ATTEMPT_DURATIONS = [
   0.5,
@@ -96,11 +97,6 @@ function MusicGamePage() {
       : 0.6;
   });
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isSuggestionsOpen, setIsSuggestionsOpen] =
-    useState(false);
-
-  const [activeSuggestionIndex, setActiveSuggestionIndex] =
-    useState(-1);
   const [attemptResults, setAttemptResults] = useState<AttemptResult[]>([]);
   const audioRef = useRef<HTMLAudioElement>(null);
   const stopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -140,23 +136,7 @@ function MusicGamePage() {
   const remainingLives = attemptDurations.length - failedAttempts;
   const hasWon = attemptResults.some((result) => result.status === "correct");
   const gameFinished = hasWon || failedAttempts === attemptDurations.length;
-  const normalizedGuess = guess.trim().toLocaleLowerCase();
 
-  const filteredSongs = normalizedGuess
-    ? songTitles
-      .filter((songTitle) =>
-        songTitle
-          .toLocaleLowerCase()
-          .includes(normalizedGuess),
-      )
-      .slice(0, 5)
-    : [];
-
-  const showSuggestions =
-    isSuggestionsOpen &&
-    normalizedGuess.length > 0 &&
-    !gameFinished &&
-    !songCatalogError;
   const maximumDuration = attemptDurations[attemptDurations.length - 1];
   const unlockedDuration = gameFinished
     ? maximumDuration
@@ -389,67 +369,6 @@ function MusicGamePage() {
     };
   }, []);
 
-  function handleGuessChange(
-    event: ChangeEvent<HTMLInputElement>,
-  ) {
-    setGuess(event.target.value);
-    setIsSuggestionsOpen(true);
-    setActiveSuggestionIndex(-1);
-  }
-
-  function handleSelectSong(songTitle: string) {
-    setGuess(songTitle);
-    setIsSuggestionsOpen(false);
-    setActiveSuggestionIndex(-1);
-  }
-
-  function handleGuessKeyDown(
-    event: KeyboardEvent<HTMLInputElement>,
-  ) {
-    if (event.key === "Escape") {
-      setIsSuggestionsOpen(false);
-      setActiveSuggestionIndex(-1);
-      return;
-    }
-
-    if (filteredSongs.length === 0) {
-      return;
-    }
-
-    if (event.key === "ArrowDown") {
-      event.preventDefault();
-      setIsSuggestionsOpen(true);
-
-      setActiveSuggestionIndex((previousIndex) =>
-        previousIndex >= filteredSongs.length - 1
-          ? 0
-          : previousIndex + 1,
-      );
-    }
-
-    if (event.key === "ArrowUp") {
-      event.preventDefault();
-      setIsSuggestionsOpen(true);
-
-      setActiveSuggestionIndex((previousIndex) =>
-        previousIndex <= 0
-          ? filteredSongs.length - 1
-          : previousIndex - 1,
-      );
-    }
-
-    if (
-      event.key === "Enter" &&
-      isSuggestionsOpen &&
-      activeSuggestionIndex >= 0
-    ) {
-      event.preventDefault();
-
-      handleSelectSong(
-        filteredSongs[activeSuggestionIndex],
-      );
-    }
-  }
 
   async function handleSkip() {
     if (
@@ -462,8 +381,6 @@ function MusicGamePage() {
       return;
     }
 
-    setIsSuggestionsOpen(false);
-    setActiveSuggestionIndex(-1);
     stopAudio();
     setIsSubmittingGuess(true);
     setGuessError(null);
@@ -505,9 +422,6 @@ function MusicGamePage() {
     event: SubmitEvent<HTMLFormElement>,
   ) {
     event.preventDefault();
-
-    setIsSuggestionsOpen(false);
-    setActiveSuggestionIndex(-1);
 
     const cleanedGuess = guess.trim();
 
@@ -643,127 +557,23 @@ function MusicGamePage() {
           onVolumeChange={setVolume}
         />
 
-        <form className="guess-form" onSubmit={handleSubmit}>
-          <label className="guess-form__label" htmlFor="song-guess">
-            Qual é a música?
-          </label>
-          {guessError && (
-            <p className="guess-form__error" role="alert">
-              {guessError}
-            </p>
-          )}
-          {songCatalogError && (
-            <p
-              className="guess-form__error"
-              role="alert"
-            >
-              {songCatalogError}
-            </p>
-          )}
-          <div className="guess-form__autocomplete">
-            <input
-              id="song-guess"
-              name="song-guess"
-              type="text"
-              role="combobox"
-              placeholder="Digite o nome da música..."
-              autoComplete="off"
-              value={guess}
-              disabled={
-                gameFinished ||
-                isGameUnavailable ||
-                isSubmittingGuess
-              }
-              aria-autocomplete="list"
-              aria-expanded={showSuggestions}
-              aria-controls="song-suggestions"
-              aria-activedescendant={
-                activeSuggestionIndex >= 0
-                  ? `song-suggestion-${activeSuggestionIndex}`
-                  : undefined
-              }
-              onChange={handleGuessChange}
-              onKeyDown={handleGuessKeyDown}
-              onFocus={() => {
-                if (guess.trim()) {
-                  setIsSuggestionsOpen(true);
-                }
-              }}
-              onBlur={() => setIsSuggestionsOpen(false)}
-            />
+      
+        <GuessForm
+        guess={guess}
+        songTitles={songTitles}
+        guessError={guessError}
+        songCatalogError={songCatalogError}
+        disabled={
+          gameFinished ||
+          isGameUnavailable || 
+          isSubmittingGuess
+        }
+        isSubmitting={isSubmittingGuess}
+        onGuessChange={setGuess}
+        onSkip={handleSkip}
+        onSubmit={handleSubmit}
+        ></GuessForm>
 
-            {showSuggestions && (
-              <ul
-                className="song-suggestions"
-                id="song-suggestions"
-                role="listbox"
-              >
-                {filteredSongs.length > 0 ? (
-                  filteredSongs.map((songTitle, index) => (
-                    <li
-                      id={`song-suggestion-${index}`}
-                      key={songTitle}
-                      role="option"
-                      aria-selected={
-                        index === activeSuggestionIndex
-                      }
-                    >
-                      <button
-                        className={`song-suggestions__option ${index === activeSuggestionIndex
-                          ? "song-suggestions__option--active"
-                          : ""
-                          }`}
-                        type="button"
-                        onPointerDown={(event) => {
-                          event.preventDefault();
-                          handleSelectSong(songTitle);
-                        }}
-                        onClick={() =>
-                          handleSelectSong(songTitle)
-                        }
-                      >
-                        {songTitle}
-
-                      </button>
-
-                    </li>
-                  ))
-                ) : (
-                  <li className="song-suggestions__empty">
-                    Nenhuma música encontrada
-                  </li>
-                )}
-
-              </ul>
-            )}
-
-            <button
-              className="guess-button guess-button--skip"
-              type="button"
-              onClick={handleSkip}
-              disabled={
-                gameFinished ||
-                isGameUnavailable ||
-                isSubmittingGuess
-              }
-            >
-              Pular
-            </button>
-            <button
-              className="guess-button guess-button--confirm"
-              type="submit"
-              disabled={
-                gameFinished ||
-                isGameUnavailable ||
-                isSubmittingGuess
-              }
-            >
-              {isSubmittingGuess
-                ? "Validando..."
-                : "Confirmar"}
-            </button>
-          </div>
-        </form>
 
         <SiteFooter />
       </section>
