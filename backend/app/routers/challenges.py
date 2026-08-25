@@ -23,8 +23,10 @@ from app.repositories.game_sessions import (
     create_game_session,
     get_game_session,
 )
-from pathlib import Path
 from fastapi.responses import FileResponse
+from app.services.audio_files import (
+    find_audio_file,
+)
 
 router = APIRouter(
     prefix="/challenges",
@@ -38,9 +40,7 @@ DatabaseSession = Annotated[
     Depends(get_db),
 ]
 
-BACKEND_DIRECTORY = Path(__file__).resolve().parents[2]
 
-AUDIO_DIRECTORY = BACKEND_DIRECTORY / "media" / "audio"
 
 
 class SessionAttemptResponse(BaseModel):
@@ -95,9 +95,9 @@ def read_daily_audio(
             detail=("O desafio atual não possui " "um áudio disponível."),
         )
 
-    audio_path = AUDIO_DIRECTORY / f"{audio_key}.mp3"
+    audio_path = find_audio_file(audio_key)
 
-    if not audio_path.is_file():
+    if audio_path is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Arquivo de áudio não encontrado.",
