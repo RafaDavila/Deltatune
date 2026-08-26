@@ -34,6 +34,7 @@ from app.repositories.infinite_games import (
 from app.schemas.infinite_game import (
     InfiniteGuessRequest,
     InfiniteGuessResponse,
+    InfiniteNextRequest,
     InfiniteSkipRequest,
     InfiniteSkipResponse,
     StartInfiniteGameResponse,
@@ -44,6 +45,15 @@ from app.services.answer_normalization import (
 from app.models.infinite_game import (
     InfiniteRoundModel,
     InfiniteRunModel,
+)
+
+from app.repositories.infinite_games import (
+    add_infinite_attempt,
+    create_infinite_run,
+    create_next_infinite_round,
+    get_infinite_round,
+    get_infinite_run,
+    get_latest_infinite_round,
 )
 
 router = APIRouter(
@@ -327,4 +337,73 @@ def skip_infinite_guess(
             if game_round.finished
             else None
         ),
+    )
+
+@router.post(
+    "/next",
+    response_model=StartInfiniteGameResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def start_next_infinite_round(
+    request: InfiniteNextRequest,
+    db: DatabaseSession,
+) -> StartInfiniteGameResponse:
+    game_run, current_round = (
+        get_validated_infinite_round(
+            db,
+            request.run_id,
+            request.round_id,
+        )
+    )
+
+    if not current_round.finished:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "A rodada atual ainda não "
+                "foi finalizada."
+            ),
+        )
+
+    latest_round = get_latest_infinite_round(
+        db,
+        game_run.id,
+    )
+
+    if (
+        latest_round is None
+        or latest_round.id != current_round.id
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "Esta não é a rodada atual "
+                "da sessão."
+            ),
+        )
+
+    try:
+        next_round = create_next_infinite_round(
+            db,
+            game_run,
+            current_round,
+        )
+    except LookupError as error:
+        raise HTTPException(
+            status_code=(
+                status.HTTP_503_SERVICE_UNAVAILABLE
+            ),
+            detail=str(error),
+        ) from error
+
+    return StartInfiniteGameResponse(
+        run_id=game_run.id,
+        round_id=next_round.id,
+        round_number=next_round.round_number,
+        attempt_durations=ATTEMPT_DURATIONS,
+        remaining_lives=(
+            next_round.remaining_lives
+        ),
+        maximum_attempts=MAX_ATTEMPTS,
+        current_streak=game_run.current_streak,
     )

@@ -77,6 +77,10 @@ class InfiniteSkipRequest(
 ):
     pass
 
+class InfiniteNextRequest(
+    InfiniteRoundRequest,
+):
+    pass
 
 class InfiniteRoundResultResponse(BaseModel):
     model_config = ConfigDict(
