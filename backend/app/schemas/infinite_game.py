@@ -129,3 +129,23 @@ class InfiniteSkipResponse(
     InfiniteRoundResultResponse,
 ):
     skipped: bool
+
+class InfiniteAttemptResponse(BaseModel):
+    answer: str
+    status: str
+
+class ResumeInfiniteGameResponse(
+    StartInfiniteGameResponse,
+):
+    attempts: list[InfiniteAttemptResponse]
+
+    won: bool
+
+    game_finished: bool = Field(
+        serialization_alias="gameFinished",
+    )
+
+    song_title: str | None = Field(
+        default=None,
+        serialization_alias="songTitle",
+    )

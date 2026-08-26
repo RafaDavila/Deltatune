@@ -37,6 +37,8 @@ from app.schemas.infinite_game import (
     InfiniteNextRequest,
     InfiniteSkipRequest,
     InfiniteSkipResponse,
+    InfiniteAttemptResponse,
+    ResumeInfiniteGameResponse,
     StartInfiniteGameResponse,
 )
 from app.services.answer_normalization import (
@@ -406,4 +408,65 @@ def start_next_infinite_round(
         ),
         maximum_attempts=MAX_ATTEMPTS,
         current_streak=game_run.current_streak,
+    )
+
+@router.get(
+    "/{run_id}",
+    response_model=ResumeInfiniteGameResponse,
+)
+def resume_infinite_game(
+    run_id: UUID,
+    db: DatabaseSession,
+) -> ResumeInfiniteGameResponse:
+    game_run = get_infinite_run(
+        db,
+        run_id,
+    )
+
+    if game_run is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=(
+                "Sessão do modo infinito "
+                "não encontrada."
+            ),
+        )
+
+    game_round = get_latest_infinite_round(
+        db,
+        game_run.id,
+    )
+
+    if game_round is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=(
+                "A sessão não possui rodadas."
+            ),
+        )
+
+    return ResumeInfiniteGameResponse(
+        run_id=game_run.id,
+        round_id=game_round.id,
+        round_number=game_round.round_number,
+        attempt_durations=ATTEMPT_DURATIONS,
+        remaining_lives=(
+            game_round.remaining_lives
+        ),
+        maximum_attempts=MAX_ATTEMPTS,
+        current_streak=game_run.current_streak,
+        attempts=[
+            InfiniteAttemptResponse(
+                answer=attempt.answer,
+                status=attempt.status,
+            )
+            for attempt in game_round.attempts
+        ],
+        won=game_round.won,
+        game_finished=game_round.finished,
+        song_title=(
+            game_round.song.title
+            if game_round.finished
+            else None
+        ),
     )

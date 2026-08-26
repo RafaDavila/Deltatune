@@ -479,3 +479,173 @@ def test_infinite_cycle_uses_every_song_before_repeat(
     assert second_cycle_round.song_id in (
         used_song_ids
     )
+
+def test_resume_active_infinite_game(
+    client: TestClient,
+) -> None:
+    game = client.post(
+        "/infinite/start",
+    ).json()
+
+    guess_response = client.post(
+        "/infinite/guess",
+        json={
+            "runId": game["runId"],
+            "roundId": game["roundId"],
+            "answer": "Resposta incorreta",
+        },
+    )
+
+    assert guess_response.status_code == 200
+
+    response = client.get(
+        f"/infinite/{game['runId']}",
+    )
+
+    assert response.status_code == 200
+
+    resumed_game = response.json()
+
+    assert resumed_game["runId"] == game["runId"]
+    assert resumed_game["roundId"] == (
+        game["roundId"]
+    )
+    assert resumed_game["roundNumber"] == 1
+    assert resumed_game["remainingLives"] == 5
+    assert resumed_game["maximumAttempts"] == 6
+    assert resumed_game["currentStreak"] == 0
+    assert resumed_game["won"] is False
+    assert resumed_game["gameFinished"] is False
+    assert resumed_game["songTitle"] is None
+
+    assert resumed_game["attempts"] == [
+        {
+            "answer": "Resposta incorreta",
+            "status": "wrong",
+        },
+    ]
+
+def test_resume_latest_infinite_round(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    first_game = client.post(
+        "/infinite/start",
+    ).json()
+
+    first_round = db_session.get(
+        InfiniteRoundModel,
+        UUID(first_game["roundId"]),
+    )
+
+    assert first_round is not None
+
+    client.post(
+        "/infinite/guess",
+        json={
+            "runId": first_game["runId"],
+            "roundId": first_game["roundId"],
+            "answer": first_round.song.title,
+        },
+    )
+
+    next_response = client.post(
+        "/infinite/next",
+        json={
+            "runId": first_game["runId"],
+            "roundId": first_game["roundId"],
+        },
+    )
+
+    assert next_response.status_code == 201
+
+    second_game = next_response.json()
+
+    response = client.get(
+        f"/infinite/{first_game['runId']}",
+    )
+
+    assert response.status_code == 200
+
+    resumed_game = response.json()
+
+    assert resumed_game["roundId"] == (
+        second_game["roundId"]
+    )
+    assert resumed_game["roundNumber"] == 2
+    assert resumed_game["currentStreak"] == 1
+    assert resumed_game["remainingLives"] == 6
+    assert resumed_game["attempts"] == []
+    assert resumed_game["gameFinished"] is False
+    assert resumed_game["songTitle"] is None
+
+def test_resume_unknown_infinite_game(
+    client: TestClient,
+) -> None:
+    unknown_run_id = (
+        "00000000-0000-0000-0000-000000000000"
+    )
+
+    response = client.get(
+        f"/infinite/{unknown_run_id}",
+    )
+
+    assert response.status_code == 404
+
+    assert response.json()["detail"] == (
+        "Sessão do modo infinito não encontrada."
+    )
+
+def test_resume_finished_infinite_round(
+    client: TestClient,
+) -> None:
+    game = client.post(
+        "/infinite/start",
+    ).json()
+
+    final_result = None
+
+    for _ in range(6):
+        skip_response = client.post(
+            "/infinite/skip",
+            json={
+                "runId": game["runId"],
+                "roundId": game["roundId"],
+            },
+        )
+
+        assert skip_response.status_code == 200
+        final_result = skip_response.json()
+
+    assert final_result is not None
+    assert final_result["gameFinished"] is True
+    assert final_result["songTitle"] is not None
+
+    response = client.get(
+        f"/infinite/{game['runId']}",
+    )
+
+    assert response.status_code == 200
+
+    resumed_game = response.json()
+
+    assert resumed_game["runId"] == game["runId"]
+    assert resumed_game["roundId"] == (
+        game["roundId"]
+    )
+    assert resumed_game["remainingLives"] == 0
+    assert resumed_game["won"] is False
+    assert resumed_game["gameFinished"] is True
+    assert resumed_game["songTitle"] == (
+        final_result["songTitle"]
+    )
+
+    assert len(resumed_game["attempts"]) == 6
+
+    assert all(
+        attempt == {
+            "answer": "Pulou",
+            "status": "skipped",
+        }
+        for attempt in resumed_game["attempts"]
+    )
