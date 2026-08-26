@@ -190,3 +190,178 @@ export function getDailyAudioUrl(
     `?challenge=${encodeURIComponent(challengeId)}`
   );
 }
+
+export type InfiniteGameResponse = {
+  runId: string;
+  roundId: string;
+  roundNumber: number;
+  attemptDurations: number[];
+  remainingLives: number;
+  maximumAttempts: number;
+  currentStreak: number;
+};
+
+export type InfiniteRoundResult = {
+  runId: string;
+  roundId: string;
+  won: boolean;
+  gameFinished: boolean;
+  attemptsUsed: number;
+  remainingLives: number;
+  currentStreak: number;
+  songTitle: string | null;
+};
+
+export type InfiniteGuessResponse =
+  InfiniteRoundResult & {
+    correct: boolean;
+  };
+
+export type InfiniteSkipResponse =
+  InfiniteRoundResult & {
+    skipped: boolean;
+  };
+
+export type ResumeInfiniteGameResponse =
+  InfiniteGameResponse & {
+    attempts: SessionAttempt[];
+    won: boolean;
+    gameFinished: boolean;
+    songTitle: string | null;
+  };
+
+export async function startInfiniteGame():
+  Promise<InfiniteGameResponse> {
+  const response = await fetch(
+    `${API_BASE_URL}/infinite/start`,
+    {
+      method: "POST",
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      "Não foi possível iniciar o modo infinito.",
+    );
+  }
+
+  return response.json();
+}
+
+export async function resumeInfiniteGame(
+  runId: string,
+): Promise<ResumeInfiniteGameResponse> {
+  const response = await fetch(
+    `${API_BASE_URL}/infinite/` +
+      encodeURIComponent(runId),
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      "Não foi possível recuperar o modo infinito.",
+    );
+  }
+
+  return response.json();
+}
+
+export async function submitInfiniteGuess(
+  runId: string,
+  roundId: string,
+  answer: string,
+): Promise<InfiniteGuessResponse> {
+  const response = await fetch(
+    `${API_BASE_URL}/infinite/guess`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        runId,
+        roundId,
+        answer,
+      }),
+    },
+  );
+
+  if (!response.ok) {
+    const errorData = await response
+      .json()
+      .catch(() => null) as {
+        detail?: string;
+      } | null;
+
+    throw new Error(
+      errorData?.detail ??
+        "Não foi possível validar o palpite.",
+    );
+  }
+
+  return response.json();
+}
+
+export async function skipInfiniteGuess(
+  runId: string,
+  roundId: string,
+): Promise<InfiniteSkipResponse> {
+  const response = await fetch(
+    `${API_BASE_URL}/infinite/skip`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        runId,
+        roundId,
+      }),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      "Não foi possível pular a tentativa.",
+    );
+  }
+
+  return response.json();
+}
+
+export async function startNextInfiniteRound(
+  runId: string,
+  roundId: string,
+): Promise<InfiniteGameResponse> {
+  const response = await fetch(
+    `${API_BASE_URL}/infinite/next`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        runId,
+        roundId,
+      }),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      "Não foi possível iniciar a próxima rodada.",
+    );
+  }
+
+  return response.json();
+}
+
+export function getInfiniteAudioUrl(
+  runId: string,
+  roundId: string,
+): string {
+  return (
+    `${API_BASE_URL}/infinite/` +
+    `${encodeURIComponent(runId)}/rounds/` +
+    `${encodeURIComponent(roundId)}/audio`
+  );
+}

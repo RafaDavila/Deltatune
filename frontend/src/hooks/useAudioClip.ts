@@ -106,7 +106,7 @@ function useAudioClip({
   }, [volume]);
 
   useEffect(() => {
-    stopAudio();
+    return stopAudio;
   }, [
     audioSource,
     stopAudio,

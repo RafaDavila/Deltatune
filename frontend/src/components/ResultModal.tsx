@@ -7,8 +7,11 @@ type ResultModalProps = {
   attemptsUsed: number;
   remainingLives: number;
   isPlaying: boolean;
+  revealLabel?:string;
+  continueLabel?: string;
   onReplay: () => void;
   onClose: () => void;
+  onContinue?:() => void | Promise<void>;
 };
 
 const maximumLives = 6;
@@ -19,8 +22,11 @@ function ResultModal({
   attemptsUsed,
   remainingLives,
   isPlaying,
+  revealLabel = "A música do dia era",
+  continueLabel = "Continuar",
   onReplay,
   onClose,
+  onContinue,
 }: ResultModalProps) {
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -75,7 +81,7 @@ function ResultModal({
         </h2>
 
         <p className="result-modal__reveal">
-          A música do dia era
+          {revealLabel}
         </p>
 
         <strong className="result-modal__song">
@@ -129,9 +135,9 @@ function ResultModal({
         <button
           className="result-modal__continue"
           type="button"
-          onClick={onClose}
+          onClick={onContinue ?? onClose}
         >
-          Continuar
+          {continueLabel}
         </button>
       </section>
     </div>

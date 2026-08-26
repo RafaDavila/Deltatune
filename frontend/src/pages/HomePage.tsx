@@ -38,7 +38,10 @@ function HomePage() {
           <span className="game-card__status">Jogar</span>
         </Link>
 
-        <button className="game-card" disabled>
+        <Link
+          className="game-card game-card--available"
+          to="/infinito"
+        >
           <img
             className="game-card__heart"
             src={heartIcon}
@@ -48,11 +51,16 @@ function HomePage() {
 
           <div>
             <h2>MODO INFINITO</h2>
-            <p>Adivinhe quantas músicas conseguir sem esperar o próximo desafio.</p>
+            <p>
+              Adivinhe quantas músicas conseguir
+              sem esperar o próximo desafio.
+            </p>
           </div>
 
-          <span className="game-card__status">Em breve</span>
-        </button>
+          <span className="game-card__status">
+            Jogar
+          </span>
+        </Link>
       </section>
       <SiteFooter />
     </main>
