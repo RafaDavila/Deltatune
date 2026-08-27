@@ -1,8 +1,8 @@
 # Deltatune
 
-Deltatune é um jogo web diário de adivinhação musical inspirado no universo de **DELTARUNE**.
+Deltatune é um jogo web de adivinhação musical inspirado no universo de **DELTARUNE**. A aplicação possui um desafio diário e um modo infinito, com sessões persistentes, progressão de trechos e validação segura das respostas pelo backend.
 
-O jogador começa ouvindo apenas **0,5 segundo** de uma faixa e precisa descobrir o título associado a ela. Cada resposta incorreta ou tentativa pulada consome um coração e libera um trecho maior:
+O jogador começa ouvindo apenas **0,5 segundo** de uma faixa. Cada resposta incorreta ou tentativa pulada consome um coração e libera um trecho maior:
 
 ```text
 0,5s → 1s → 2s → 4s → 8s → 16s
@@ -14,129 +14,150 @@ O projeto foi desenvolvido para estudo e portfólio, reunindo frontend, backend,
 
 ## Demonstração
 
-**Aplicação:** https://deltatune.vercel.app
-
-**API:** https://deltatune.onrender.com
-
-**Documentação Swagger:** https://deltatune.onrender.com/docs
+- **Aplicação:** https://deltatune.vercel.app
+- **API:** https://deltatune.onrender.com
+- **Documentação Swagger:** https://deltatune.onrender.com/docs
 
 O frontend está hospedado na Vercel, a API FastAPI no Render e o PostgreSQL no Neon.
 
 > A instância gratuita do Render pode entrar em suspensão após um período sem acessos. Por isso, a primeira requisição pode levar alguns segundos para carregar.
 
+## Modos de jogo
+
+### Desafio diário
+
+- Música atualizada diariamente;
+- mesma faixa para todos os jogadores durante o dia;
+- contador regressivo para a próxima música;
+- sessão recuperada automaticamente após atualizar a página;
+- resposta revelada somente após vitória ou fim das tentativas.
+
+### Modo infinito
+
+- Rodadas consecutivas sem esperar o próximo desafio diário;
+- seleção aleatória entre as músicas disponíveis;
+- nenhuma música se repete antes de todas serem utilizadas no ciclo;
+- início automático de um novo ciclo após esgotar o catálogo;
+- sequência de acertos mantida entre rodadas;
+- sequência zerada após uma derrota;
+- recorde pessoal salvo no navegador;
+- nova sessão iniciada na rodada 001 ao recomeçar;
+- recuperação da rodada, das tentativas e da sequência após recarregar a página.
+
 ## Funcionalidades implementadas
 
 ### Jogo
 
-* Desafio musical atualizado diariamente;
-* Catálogo inicial com 13 títulos selecionados do Capítulo 1;
-* Seis tentativas representadas por corações;
-* Trechos progressivos de 0,5 a 16 segundos;
-* Reprodução controlada conforme o trecho liberado;
-* Controle de volume com preferência salva no navegador;
-* Envio e validação de palpites pelo backend;
-* Opção de pular uma tentativa;
-* Autocomplete personalizado carregado pela API;
-* Suporte a títulos alternativos;
-* Indicação visual de respostas corretas, incorretas e puladas;
-* Animação visual ao acertar;
-* Resultado final da partida;
-* Contador regressivo para o próximo desafio;
-* Tutorial de como jogar;
-* Liberação do trecho completo ao finalizar a partida;
-* Recuperação da partida após recarregar a página.
+- Catálogo com 58 músicas cadastradas;
+- seis tentativas representadas por corações;
+- trechos progressivos de 0,5 a 16 segundos;
+- reprodução controlada conforme o trecho liberado;
+- controle de volume com preferência salva no navegador;
+- envio e validação de palpites pelo backend;
+- bloqueio de palpites repetidos sem consumo de vidas;
+- opção de pular uma tentativa;
+- autocomplete personalizado carregado pela API;
+- suporte a títulos alternativos;
+- indicação visual de respostas corretas, incorretas e puladas;
+- resultado final com revelação da resposta;
+- tutorial de como jogar;
+- recuperação de partidas em andamento ou finalizadas.
 
 ### Sessões e progresso
 
-* Criação de uma sessão individual para cada jogador;
-* Identificação da sessão por UUID;
-* Tentativas persistidas no PostgreSQL;
-* Recuperação de partidas em andamento ou finalizadas;
-* Controle de vidas realizado pelo backend;
-* Bloqueio de palpites após o encerramento da partida;
-* Validação de sessões pertencentes ao desafio diário atual;
-* Armazenamento apenas do identificador da sessão no `localStorage`.
+- Criação de sessões identificadas por UUID;
+- tentativas persistidas no PostgreSQL;
+- controle de vidas realizado pelo backend;
+- bloqueio de ações após o encerramento de uma rodada;
+- validação do vínculo entre sessão e rodada;
+- título e identificadores internos protegidos durante a partida;
+- armazenamento apenas dos identificadores necessários no `localStorage`;
+- recorde do Modo Infinito armazenado localmente enquanto não há autenticação.
 
 ### Áudio
 
-* Associação entre músicas do catálogo e identificadores neutros como `track-001`;
-* Arquivos limitados a 16 segundos;
-* Normalização de volume;
-* Conversão automática para MP3;
-* Processamento em lote com Python e FFmpeg;
-* Rota fixa para entrega do áudio diário;
-* Nome da resposta protegido na URL do arquivo.
-
+- Associação entre músicas e identificadores neutros como `track-001`;
+- arquivos limitados a 16 segundos;
+- normalização de volume;
+- conversão automática para MP3;
+- processamento em lote com Python e FFmpeg;
+- rotas dedicadas ao áudio diário e ao áudio de cada rodada infinita;
+- validação segura do caminho dos arquivos;
+- nome da resposta protegido na URL.
 
 ### Frontend
 
-* Interface responsiva para computadores e dispositivos móveis;
-* Identidade visual inspirada nos menus de DELTARUNE;
-* Navegação entre páginas com React Router;
-* Componentes de tutorial, resultado e informações;
-* Estados de carregamento, erro e indisponibilidade;
-* Integração com a API por meio de uma camada de serviços;
-* Autocomplete acessível com suporte a teclado;
-* Controle de volume com ícones;
-* Preferências armazenadas no navegador;
-* Deploy contínuo na Vercel.
+- Interface responsiva para computadores e dispositivos móveis;
+- identidade visual inspirada nos menus de DELTARUNE;
+- navegação com React Router;
+- páginas separadas para o desafio diário e o Modo Infinito;
+- componentes reutilizáveis de áudio, tentativas, vidas, tutorial e resultado;
+- estados de carregamento, erro e indisponibilidade;
+- integração com a API por meio de uma camada de serviços;
+- autocomplete acessível com suporte a teclado;
+- preferências e progresso local armazenados no navegador;
+- testes de componentes e páginas com Vitest e React Testing Library;
+- deploy contínuo na Vercel.
 
 ### Backend
 
-* API REST criada com FastAPI;
-* Catálogo de músicas armazenado no PostgreSQL;
-* Persistência de sessões e tentativas;
-* SQLAlchemy como ORM;
-* Alembic para controle de migrations;
-* Seed reutilizável para carregar e atualizar o catálogo;
-* Rotação diária baseada na data;
-* Renovação à meia-noite no horário de Brasília;
-* Validação segura de palpites no servidor;
-* Normalização de maiúsculas, minúsculas e espaços;
-* Proteção da resposta correta durante a partida;
-* Entrega dinâmica do arquivo de áudio;
-* CORS configurável por variável de ambiente;
-* Endpoint de verificação de saúde;
-* Documentação interativa com Swagger;
-* Testes automatizados com Pytest;
-* Deploy em container Docker no Render.
+- API REST criada com FastAPI;
+- catálogo e sessões armazenados no PostgreSQL;
+- SQLAlchemy como ORM;
+- Alembic para controle de migrations;
+- seed reutilizável para carregar e atualizar o catálogo;
+- rotação diária baseada na data;
+- renovação à meia-noite no horário de Brasília;
+- seleção aleatória e ciclos sem repetição no Modo Infinito;
+- validação segura de palpites no servidor;
+- normalização de maiúsculas, minúsculas e espaços;
+- proteção da resposta correta durante a partida;
+- entrega dinâmica dos arquivos de áudio;
+- CORS configurável por variável de ambiente;
+- endpoint de verificação de saúde;
+- documentação interativa com Swagger;
+- testes automatizados com Pytest;
+- deploy em container Docker no Render.
 
 ## Tecnologias
 
 ### Frontend
 
-* React;
-* TypeScript;
-* Vite;
-* React Router;
-* React Icons;
-* CSS;
-* ESLint;
-* Vercel.
+- React;
+- TypeScript;
+- Vite;
+- React Router;
+- React Icons;
+- CSS;
+- ESLint;
+- Vitest;
+- React Testing Library;
+- jest-dom;
+- jsdom;
+- Vercel.
 
 ### Backend
 
-* Python;
-* FastAPI;
-* Pydantic;
-* Uvicorn;
-* SQLAlchemy;
-* Alembic;
-* Psycopg;
-* PostgreSQL;
-* Pytest;
-* FFmpeg;
-* Docker;
-* Render;
-* Neon.
+- Python;
+- FastAPI;
+- Pydantic;
+- Uvicorn;
+- SQLAlchemy;
+- Alembic;
+- Psycopg;
+- PostgreSQL;
+- Pytest;
+- FFmpeg;
+- Docker;
+- Render;
+- Neon.
 
 ### Ferramentas
 
-* Git;
-* GitHub;
-* Visual Studio Code;
-* Swagger UI;
-* Docker Desktop.
+- Git e GitHub;
+- Visual Studio Code;
+- Swagger UI;
+- Docker Desktop.
 
 ## Arquitetura
 
@@ -154,260 +175,91 @@ Render
     ├── PostgreSQL
     │   Neon
     │
-    └── Trechos de áudio CC0
+    └── Trechos de áudio
         Imagem Docker
 ```
 
-## Estrutura do projeto
-
-```text
-Deltatune/
-├── frontend/
-│   ├── src/
-│   │   ├── assets/
-│   │   ├── components/
-│   │   ├── pages/
-│   │   ├── services/
-│   │   ├── App.tsx
-│   │   └── App.css
-│   └── package.json
-│
-├── backend/
-│   ├── app/
-│   │   ├── models/
-│   │   ├── repositories/
-│   │   ├── routers/
-│   │   ├── schemas/
-│   │   ├── services/
-│   │   ├── config.py
-│   │   ├── database.py
-│   │   └── main.py
-│   ├── media/
-│   │   └── audio/
-│   ├── migrations/
-│   │   └── versions/
-│   ├── scripts/
-│   │   ├── process_audio.py
-│   │   └── seed_songs.py
-│   ├── tests/
-│   ├── alembic.ini
-│   ├── Dockerfile
-│   ├── requirements.txt
-│   ├── .dockerignore
-│   └── .env.example
-│
-└── README.md
-```
+O frontend mantém apenas identificadores de sessão e preferências no navegador. As regras do jogo, tentativas, vidas, respostas e sequências são validadas ou persistidas pelo backend.
 
 ## Endpoints
 
-| Método | Endpoint                                 | Descrição                                    |
-| ------ | ---------------------------------------- | -------------------------------------------- |
-| `GET`  | `/health`                                | Verifica se a API está funcionando           |
-| `GET`  | `/songs`                                 | Retorna o catálogo disponível                |
-| `GET`  | `/challenges/daily`                      | Retorna os dados públicos do desafio atual   |
-| `GET`  | `/challenges/daily/audio`                | Entrega o áudio relacionado ao desafio atual |
-| `POST` | `/challenges/daily/start`                | Cria uma nova sessão de partida              |
-| `GET`  | `/challenges/daily/session/{session_id}` | Recupera uma partida existente               |
-| `POST` | `/challenges/daily/guess`                | Valida um palpite                            |
-| `POST` | `/challenges/daily/skip`                 | Registra uma tentativa pulada                |
+### Gerais e desafio diário
 
-### Exemplo do desafio diário
+| Método | Endpoint | Descrição |
+| --- | --- | --- |
+| `GET` | `/health` | Verifica se a API está funcionando |
+| `GET` | `/songs` | Retorna o catálogo disponível |
+| `GET` | `/challenges/daily` | Retorna os dados públicos do desafio atual |
+| `GET` | `/challenges/daily/audio` | Entrega o áudio do desafio atual |
+| `POST` | `/challenges/daily/start` | Cria uma sessão para o desafio diário |
+| `GET` | `/challenges/daily/session/{session_id}` | Recupera uma partida diária |
+| `POST` | `/challenges/daily/guess` | Valida um palpite diário |
+| `POST` | `/challenges/daily/skip` | Registra uma tentativa pulada |
+
+### Modo Infinito
+
+| Método | Endpoint | Descrição |
+| --- | --- | --- |
+| `POST` | `/infinite/start` | Cria uma sessão e a primeira rodada |
+| `GET` | `/infinite/{run_id}` | Recupera a rodada atual da sessão |
+| `GET` | `/infinite/{run_id}/rounds/{round_id}/audio` | Entrega o áudio da rodada |
+| `POST` | `/infinite/guess` | Valida um palpite da rodada |
+| `POST` | `/infinite/skip` | Registra uma tentativa pulada |
+| `POST` | `/infinite/next` | Cria a próxima rodada após a atual terminar |
+
+## Exemplos da API
+
+### Desafio diário
 
 ```json
 {
   "challengeId": "013",
   "challengeNumber": 13,
-  "attemptDurations": [
-    0.5,
-    1,
-    2,
-    4,
-    8,
-    16
-  ],
+  "attemptDurations": [0.5, 1, 2, 4, 8, 16],
   "nextResetAt": "2026-08-24T00:00:00-03:00"
 }
 ```
 
-### Exemplo de envio de palpite
+### Início do Modo Infinito
 
 ```json
 {
-  "sessionId": "2bef0a0a-1e26-4d85-b19c-373a52c33b36",
-  "challengeId": "013",
+  "runId": "c923ad32-42c3-4715-89b8-7795408ba64f",
+  "roundId": "70fbd5df-daac-47c8-a783-286ae3cb60ac",
+  "roundNumber": 1,
+  "attemptDurations": [0.5, 1, 2, 4, 8, 16],
+  "remainingLives": 6,
+  "maximumAttempts": 6,
+  "currentStreak": 0
+}
+```
+
+### Envio de palpite infinito
+
+```json
+{
+  "runId": "c923ad32-42c3-4715-89b8-7795408ba64f",
+  "roundId": "70fbd5df-daac-47c8-a783-286ae3cb60ac",
   "answer": "Don't Forget"
 }
 ```
 
-### Exemplo de tentativa pulada
+## Testes e verificações
 
-```json
-{
-  "sessionId": "2bef0a0a-1e26-4d85-b19c-373a52c33b36",
-  "challengeId": "013"
-}
-```
+### Backend
 
-## Executando localmente
+O backend possui **36 testes automatizados** cobrindo, entre outros cenários:
 
-### Pré-requisitos
-
-Instale:
-
-* Git;
-* Node.js;
-* npm;
-* Python;
-* PostgreSQL;
-* FFmpeg, caso queira gerar novos trechos;
-* Docker, opcionalmente.
-
-### 1. Clonar o repositório
-
-```bash
-git clone https://github.com/RafaDavila/Deltatune.git
-cd Deltatune
-```
-
-### 2. Configurar o backend
-
-No Windows PowerShell:
-
-```powershell
-cd backend
-
-python -m venv .venv
-
-& ".\.venv\Scripts\Activate.ps1"
-
-python -m pip install -r requirements.txt
-```
-
-Crie o `.env` a partir do exemplo:
-
-```powershell
-Copy-Item .env.example .env
-```
-
-Configure as variáveis:
-
-```env
-DATABASE_URL=postgresql+psycopg://postgres:SUA_SENHA@localhost:5432/deltatune
-TEST_DATABASE_URL=postgresql+psycopg://postgres:SUA_SENHA@localhost:5432/deltatune_test
-CORS_ORIGINS=["http://localhost:5173","http://127.0.0.1:5173"]
-```
-
-Crie os bancos `deltatune` e `deltatune_test` no PostgreSQL.
-
-Execute as migrations e carregue o catálogo:
-
-```powershell
-alembic upgrade head
-python -m scripts.seed_songs
-```
-
-Inicie a API:
-
-```powershell
-uvicorn app.main:app --reload --port 8000
-```
-
-A API estará disponível em:
-
-```text
-http://127.0.0.1:8000
-```
-
-Documentação interativa:
-
-```text
-http://127.0.0.1:8000/docs
-```
-
-### 3. Executar o frontend
-
-Em outro terminal:
-
-```powershell
-cd frontend
-npm install
-npm run dev
-```
-
-A aplicação estará disponível em:
-
-```text
-http://localhost:5173
-```
-
-Na ausência de `VITE_API_URL`, o frontend utiliza por padrão:
-
-```text
-http://127.0.0.1:8000
-```
-
-## Processamento dos áudios
-
-As músicas completas utilizadas como fonte devem ser colocadas em:
-
-```text
-backend/audio_sources/
-```
-
-Essa pasta é ignorada pelo Git.
-
-Para gerar automaticamente os trechos:
-
-```powershell
-python .\backend\scripts\process_audio.py
-```
-
-Os arquivos processados serão criados em:
-
-```text
-backend/media/audio/
-```
-
-Cada faixa será:
-
-* limitada a 16 segundos;
-* normalizada;
-* convertida para MP3;
-* renomeada com um identificador neutro.
-
-## Docker
-
-Construa a imagem a partir da raiz:
-
-```powershell
-docker build `
-  -t deltatune-backend `
-  -f .\backend\Dockerfile `
-  .\backend
-```
-
-O container executa automaticamente:
-
-1. migrations do Alembic;
-2. seed do catálogo;
-3. inicialização do Uvicorn.
-
-## Testes
-
-O backend possui testes automatizados para:
-
-* health check;
-* catálogo e filtros;
-* criação de sessão;
-* recuperação de sessão;
-* palpites corretos e incorretos;
-* normalização das respostas;
-* tentativas puladas;
-* encerramento da partida;
-* sessões inválidas;
-* desafios expirados;
-* entrega do áudio diário.
+- health check e catálogo;
+- criação e recuperação de sessões;
+- palpites corretos, incorretos e repetidos;
+- normalização das respostas;
+- tentativas puladas e encerramento das partidas;
+- validação de sessões e rodadas;
+- entrega segura dos áudios;
+- sequência do Modo Infinito;
+- criação da próxima rodada;
+- ciclos completos sem repetição de músicas.
 
 Dentro de `backend`:
 
@@ -415,11 +267,19 @@ Dentro de `backend`:
 python -m pytest -v --tb=short
 ```
 
-## Verificações do frontend
+### Frontend
+
+O frontend possui **4 testes automatizados** cobrindo:
+
+- comportamento do modal diário;
+- avanço e continuação no Modo Infinito;
+- recuperação de uma sessão infinita;
+- atualização e preservação do recorde.
 
 Dentro de `frontend`:
 
 ```powershell
+npm test
 npm run lint
 npm run build
 ```
@@ -428,29 +288,29 @@ npm run build
 
 ### Backend
 
-| Variável            | Obrigatória em produção | Descrição                         |
-| ------------------- | ----------------------: | --------------------------------- |
-| `DATABASE_URL`      |                     Sim | Conexão com o PostgreSQL          |
-| `TEST_DATABASE_URL` |                     Não | Banco utilizado pelos testes      |
-| `CORS_ORIGINS`      |                     Sim | Lista JSON de origens autorizadas |
+| Variável | Obrigatória em produção | Descrição |
+| --- | ---: | --- |
+| `DATABASE_URL` | Sim | Conexão com o PostgreSQL |
+| `TEST_DATABASE_URL` | Não | Banco utilizado pelos testes |
+| `CORS_ORIGINS` | Sim | Lista JSON de origens autorizadas |
 
 ### Frontend
 
-| Variável       | Obrigatória em produção | Descrição               |
-| -------------- | ----------------------: | ----------------------- |
-| `VITE_API_URL` |                     Sim | Endereço público da API |
+| Variável | Obrigatória em produção | Descrição |
+| --- | ---: | --- |
+| `VITE_API_URL` | Sim | Endereço público da API |
 
 ## Deploy
 
 A arquitetura publicada utiliza:
 
-* Vercel para o frontend;
-* Render para a API Docker;
-* Neon para o PostgreSQL.
+- Vercel para o frontend;
+- Render para a API Docker;
+- Neon para o PostgreSQL.
 
 O Dockerfile executa migrations e seed automaticamente antes de iniciar o servidor.
 
-A origem da Vercel deve ser informada no `CORS_ORIGINS` sem uma barra no final:
+A origem da Vercel deve ser informada em `CORS_ORIGINS` sem uma barra no final:
 
 ```json
 ["https://deltatune.vercel.app"]
@@ -462,17 +322,6 @@ A variável utilizada pelo frontend é:
 VITE_API_URL=https://deltatune.onrender.com
 ```
 
-## Próximas etapas
-
-* Implementar três rodadas musicais em cada desafio diário;
-* Impedir repetições recentes na rotação;
-* Criar um placar final para as três rodadas;
-* Gerar resultado compartilhável;
-* Melhorar a experiência durante o cold start do backend;
-* Criar pipeline de integração contínua;
-* Expandir o catálogo para outros capítulos;
-* Implementar futuramente o modo “Adivinhe o personagem”;
-* Avaliar autenticação e perfis de usuário.
 
 ## Direitos autorais
 
@@ -482,14 +331,12 @@ As músicas de DELTARUNE foram compostas por **Toby Fox**, com direitos administ
 
 Este projeto não reivindica propriedade sobre DELTARUNE ou sua trilha sonora. Uma solicitação de autorização para o uso das gravações originais foi enviada à Materia Music.
 
-A versão pública atual não distribui as gravações oficiais de DELTARUNE. Para permitir o funcionamento completo da aplicação enquanto a autorização não é recebida, são utilizadas faixas demonstrativas com licença CC0 associadas aos títulos do catálogo.
-
 ## Autor
 
 Desenvolvido por **Rafael Davila**.
 
-* GitHub: [RafaDavila](https://github.com/RafaDavila)
-* Repositório: [Deltatune](https://github.com/RafaDavila/Deltatune)
+- GitHub: [RafaDavila](https://github.com/RafaDavila)
+- Repositório: [Deltatune](https://github.com/RafaDavila/Deltatune)
 
 ---
 
