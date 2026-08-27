@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useState,
   type SubmitEvent,
@@ -59,6 +60,26 @@ function loadInfiniteRecord(): number {
 function InfiniteGamePage() {
   const [bestStreak, setBestStreak] =
     useState(loadInfiniteRecord);
+
+  const updateBestStreak = useCallback(
+    (currentStreak: number) => {
+      setBestStreak((previousBestStreak) => {
+        if (
+          currentStreak <= previousBestStreak
+        ) {
+          return previousBestStreak;
+        }
+
+        localStorage.setItem(
+          INFINITE_RECORD_STORAGE_KEY,
+          currentStreak.toString(),
+        );
+
+        return currentStreak;
+      });
+    },
+    [],
+  );
 
   const [game, setGame] =
     useState<InfiniteGameResponse | null>(null);
@@ -257,6 +278,7 @@ function InfiniteGamePage() {
         }
 
         setGame(loadedGame.game);
+        updateBestStreak(loadedGame.game.currentStreak,);
         setAttemptResults(loadedGame.attempts);
         setRevealedSongTitle(
           loadedGame.songTitle,
@@ -291,7 +313,7 @@ function InfiniteGamePage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [updateBestStreak]);
 
   useEffect(() => {
     if (!gameFinished) {
@@ -308,18 +330,7 @@ function InfiniteGamePage() {
     };
   }, [gameFinished]);
 
-  function updateBestStreak(currentStreak: number) {
-    if (currentStreak <= bestStreak) {
-      return;
-    }
 
-    setBestStreak(currentStreak);
-
-    localStorage.setItem(
-      INFINITE_RECORD_STORAGE_KEY,
-      currentStreak.toString(),
-    );
-  }
 
   async function handleSkip() {
     if (
@@ -579,7 +590,7 @@ function InfiniteGamePage() {
           </strong>
 
           {" . "}
-          Redorde:{" "}
+          Recorde:{" "}
           <strong>{bestStreak}</strong>
         </p>
 
