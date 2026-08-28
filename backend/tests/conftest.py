@@ -42,11 +42,6 @@ def reset_database() -> Generator[None, None, None]:
     Base.metadata.drop_all(bind=test_engine)
 
 @pytest.fixture
-def db_session() -> Generator[Session, None, None]:
-    with TestingSessionLocal() as session:
-        yield session
-
-@pytest.fixture
 def client() -> Generator[TestClient, None, None]:
     app.dependency_overrides[get_db] = override_get_db
 

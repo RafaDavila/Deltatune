@@ -5,8 +5,10 @@ from app.models.infinite_game import (
     InfiniteRoundModel,
     InfiniteRunModel,
 )
+from app.models.user import UserModel
 
 __all__ = [
+    "UserModel",
     "InfiniteAttemptModel",
     "InfiniteRoundModel",
     "InfiniteRunModel",
