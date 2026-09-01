@@ -46,3 +46,30 @@ class UserResponse(BaseModel):
     created_at: datetime = Field(
         serialization_alias="createdAt",
     )
+
+class LoginRequest(BaseModel):
+    model_config = ConfigDict(
+        str_strip_whitespace=True,
+    )
+
+    email: EmailStr
+
+    password: str = Field(
+        min_length=1,
+        max_length=128,
+    )
+
+
+class TokenResponse(BaseModel):
+    model_config = ConfigDict(
+        populate_by_name=True,
+    )
+
+    access_token: str = Field(
+        serialization_alias="accessToken",
+    )
+
+    token_type: str = Field(
+        default="bearer",
+        serialization_alias="tokenType",
+    )

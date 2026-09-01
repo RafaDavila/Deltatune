@@ -15,10 +15,13 @@ from app.repositories.users import (
     get_user_by_email,
 )
 from app.schemas.auth import (
+    LoginRequest,
     RegisterUserRequest,
+    TokenResponse,
     UserResponse,
 )
-from app.services.passwords import hash_password
+from app.services.passwords import hash_password, verify_password
+from app.services.tokens import create_access_token
 
 
 router = APIRouter(
@@ -80,3 +83,51 @@ def register_user(
         ) from error
 
     return UserResponse.model_validate(user)
+
+@router.post(
+    "/login",
+    response_model=TokenResponse,
+)
+def login_user(
+    credentials: LoginRequest,
+    db: DatabaseSession,
+) -> TokenResponse:
+    normalized_email = str(
+        credentials.email,
+    ).casefold()
+
+    user = get_user_by_email(
+        db,
+        normalized_email,
+    )
+
+    invalid_credentials = (
+        user is None
+        or not verify_password(
+            credentials.password,
+            user.password_hash,
+        )
+    )
+
+    if invalid_credentials:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="E-mail ou senha inválidos.",
+            headers={
+                "WWW-Authenticate": "Bearer",
+            },
+        )
+
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Esta conta está desativada.",
+        )
+
+    access_token = create_access_token(
+        subject=str(user.id),
+    )
+
+    return TokenResponse(
+        access_token=access_token,
+    )
