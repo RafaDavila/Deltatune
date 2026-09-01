@@ -13,6 +13,9 @@ from app.routers.songs import (
 from app.routers.infinite_games import (
     router as infinite_games_router,
 )
+from app.routers.auth import(
+    router as auth_router,
+)
 
 
 app = FastAPI(
@@ -37,7 +40,7 @@ app.add_middleware(
 app.include_router(challenges_router)
 app.include_router(songs_router)
 app.include_router(infinite_games_router)
-
+app.include_router(auth_router)
 
 @app.get("/health", tags=["Health"])
 def health_check() -> dict[str, str]:
