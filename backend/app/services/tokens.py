@@ -4,7 +4,8 @@ from datetime import (
     timezone,
 )
 
-import jwt
+import jwt 
+from jwt import InvalidTokenError
 
 from app.config import settings
 
@@ -38,3 +39,30 @@ def create_access_token(
         settings.jwt_secret_key.get_secret_value(),
         algorithm=JWT_ALGORITHM,
     )
+
+def decode_access_token(
+    token: str,
+) -> str:
+    try:
+        payload = jwt.decode(
+            token,
+            settings.jwt_secret_key.get_secret_value(),
+            algorithms=[JWT_ALGORITHM],
+        )
+    except InvalidTokenError as error:
+        raise ValueError(
+            "Token inválido.",
+        ) from error
+
+    subject = payload.get("sub")
+    token_type = payload.get("type")
+
+    if (
+        not isinstance(subject, str)
+        or token_type != "access"
+    ):
+        raise ValueError(
+            "Token inválido.",
+        )
+
+    return subject

@@ -196,3 +196,76 @@ def test_reject_invalid_login(
     assert response.headers[
         "www-authenticate"
     ] == "Bearer"
+
+def test_read_current_user(
+    client: TestClient,
+) -> None:
+    registration = client.post(
+        "/auth/register",
+        json={
+            "displayName": "Rafael",
+            "email": "rafael@example.com",
+            "password": "Deltarune123!",
+        },
+    ).json()
+
+    login = client.post(
+        "/auth/login",
+        json={
+            "email": "rafael@example.com",
+            "password": "Deltarune123!",
+        },
+    ).json()
+
+    response = client.get(
+        "/auth/me",
+        headers={
+            "Authorization": (
+                f"Bearer {login['accessToken']}"
+            ),
+        },
+    )
+
+    assert response.status_code == 200
+
+    result = response.json()
+
+    assert result["id"] == registration["id"]
+    assert result["displayName"] == "Rafael"
+    assert result["email"] == (
+        "rafael@example.com"
+    )
+    assert result["isActive"] is True
+
+
+def test_reject_missing_access_token(
+    client: TestClient,
+) -> None:
+    response = client.get(
+        "/auth/me",
+    )
+
+    assert response.status_code == 401
+    assert response.headers[
+        "www-authenticate"
+    ] == "Bearer"
+
+
+def test_reject_invalid_access_token(
+    client: TestClient,
+) -> None:
+    response = client.get(
+        "/auth/me",
+        headers={
+            "Authorization": (
+                "Bearer token-invalido"
+            ),
+        },
+    )
+
+    assert response.status_code == 401
+
+    assert response.json()["detail"] == (
+        "Não foi possível validar "
+        "a autenticação."
+    )

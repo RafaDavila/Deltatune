@@ -22,6 +22,8 @@ from app.schemas.auth import (
 )
 from app.services.passwords import hash_password, verify_password
 from app.services.tokens import create_access_token
+from app.dependencies.authentication import (get_current_user)
+from app.models.user import UserModel
 
 
 router = APIRouter(
@@ -34,6 +36,10 @@ DatabaseSession = Annotated[
     Depends(get_db),
 ]
 
+CurrentUser = Annotated[
+    UserModel,
+    Depends(get_current_user),
+]
 
 @router.post(
     "/register",
@@ -130,4 +136,15 @@ def login_user(
 
     return TokenResponse(
         access_token=access_token,
+    )
+
+@router.get(
+    "/me",
+    response_model=UserResponse,
+)
+def read_current_user(
+    current_user: CurrentUser,
+) -> UserResponse:
+    return UserResponse.model_validate(
+        current_user,
     )

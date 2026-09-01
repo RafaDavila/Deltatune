@@ -2,6 +2,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.user import UserModel
+from uuid import UUID
 
 
 def get_user_by_email(
@@ -34,3 +35,9 @@ def create_user(
     db.refresh(user)
 
     return user
+
+def get_user_by_id(
+        db: Session,
+        user_id: UUID,
+) -> UserModel | None:
+    return db.get(UserModel, user_id)
