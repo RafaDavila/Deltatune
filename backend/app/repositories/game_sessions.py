@@ -20,9 +20,11 @@ AttemptStatus = Literal[
 def create_game_session(
     db: Session,
     challenge_id: str,
+    user_id: UUID | None = None,
 ) -> GameSessionModel:
     game_session = GameSessionModel(
         challenge_id=challenge_id,
+        user_id=user_id,
     )
 
     db.add(game_session)

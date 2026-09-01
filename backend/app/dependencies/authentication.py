@@ -75,3 +75,27 @@ def get_current_user(
         raise create_authentication_error()
 
     return user
+
+def get_optional_current_user(
+        credentials: BearerCredentials,
+        db: DatabaseSession,
+) -> UserModel | None:
+    if credentials is None:
+        return None
+
+    return get_current_user(
+        credentials,
+        db,
+    )
+
+def get_optional_current_user(
+        credentials: BearerCredentials,
+        db: DatabaseSession,
+) -> UserModel | None:
+    if credentials is None:
+        return None
+
+    return get_current_user(
+        credentials,
+        db,
+    )

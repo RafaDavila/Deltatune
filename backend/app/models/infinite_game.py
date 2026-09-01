@@ -32,6 +32,17 @@ class InfiniteRunModel(Base):
         default=uuid4,
     )
 
+    user_id: Mapped[UUID | None] = mapped_column(
+        PostgreSQLUUID(as_uuid=True),
+        ForeignKey(
+            "users.id",
+            name="fk_infinite_runs_user_id",
+            ondelete="SET NULL",
+        ),
+        nullable=True,
+        index=True,
+    )
+
     current_streak: Mapped[int] = mapped_column(
         Integer,
         nullable=False,

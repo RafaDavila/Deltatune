@@ -58,6 +58,11 @@ from app.repositories.infinite_games import (
     get_latest_infinite_round,
 )
 
+from app.dependencies.authentication import (
+    get_optional_current_user,
+)
+from app.models.user import UserModel
+
 router = APIRouter(
     prefix="/infinite",
     tags=["Infinite Game"],
@@ -66,6 +71,11 @@ router = APIRouter(
 DatabaseSession = Annotated[
     Session,
     Depends(get_db),
+]
+
+OptionalCurrentUser = Annotated[
+    UserModel | None,
+    Depends(get_optional_current_user),
 ]
 
 def get_validated_infinite_round(
@@ -132,10 +142,18 @@ ATTEMPT_DURATIONS = [
 )
 def start_infinite_game(
     db: DatabaseSession,
+    current_user: OptionalCurrentUser,
 ) -> StartInfiniteGameResponse:
     try:
         game_run, first_round = (
-            create_infinite_run(db)
+            create_infinite_run(
+                db,
+                user_id=(
+                    current_user.id
+                    if current_user is not None
+                    else None
+                ),
+            )
         )
     except LookupError as error:
         raise HTTPException(

@@ -25,6 +25,17 @@ class GameSessionModel(Base):
         default=uuid4,
     )
 
+    user_id: Mapped[UUID | None] = mapped_column(
+        PostgreSQLUUID(as_uuid=True),
+        ForeignKey(
+            "users.id",
+            name="fk_game_sessions_user_id",
+            ondelete="SET NULL",
+        ),
+        nullable=True,
+        index=True,
+    )
+
     challenge_id: Mapped[str] = mapped_column(
         String(50),
         nullable=False,
@@ -118,3 +129,4 @@ class AttemptModel(Base):
     game_session: Mapped["GameSessionModel"] = relationship(
         back_populates="attempts",
     )
+

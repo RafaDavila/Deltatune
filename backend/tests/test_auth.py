@@ -13,6 +13,14 @@ import pytest
 from app.config import settings
 from app.services.tokens import JWT_ALGORITHM
 
+from uuid import UUID
+
+from app.models.game_session import (
+    GameSessionModel,
+)
+from app.models.infinite_game import (
+    InfiniteRunModel,
+)
 
 def test_register_user(
     client: TestClient,
@@ -269,3 +277,128 @@ def test_reject_invalid_access_token(
         "Não foi possível validar "
         "a autenticação."
     )
+
+def test_link_daily_session_to_user(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    registration = client.post(
+        "/auth/register",
+        json={
+            "displayName": "Rafael",
+            "email": "rafael@example.com",
+            "password": "Deltarune123!",
+        },
+    ).json()
+
+    login = client.post(
+        "/auth/login",
+        json={
+            "email": "rafael@example.com",
+            "password": "Deltarune123!",
+        },
+    ).json()
+
+    start_response = client.post(
+        "/challenges/daily/start",
+        headers={
+            "Authorization": (
+                f"Bearer {login['accessToken']}"
+            ),
+        },
+    )
+
+    assert start_response.status_code == 201
+
+    game_session = db_session.get(
+        GameSessionModel,
+        UUID(
+            start_response.json()["sessionId"],
+        ),
+    )
+
+    assert game_session is not None
+    assert game_session.user_id == UUID(
+        registration["id"],
+    )
+
+
+def test_link_infinite_run_to_user(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    registration = client.post(
+        "/auth/register",
+        json={
+            "displayName": "Rafael",
+            "email": "rafael@example.com",
+            "password": "Deltarune123!",
+        },
+    ).json()
+
+    login = client.post(
+        "/auth/login",
+        json={
+            "email": "rafael@example.com",
+            "password": "Deltarune123!",
+        },
+    ).json()
+
+    start_response = client.post(
+        "/infinite/start",
+        headers={
+            "Authorization": (
+                f"Bearer {login['accessToken']}"
+            ),
+        },
+    )
+
+    assert start_response.status_code == 201
+
+    game_run = db_session.get(
+        InfiniteRunModel,
+        UUID(
+            start_response.json()["runId"],
+        ),
+    )
+
+    assert game_run is not None
+    assert game_run.user_id == UUID(
+        registration["id"],
+    )
+
+
+def test_keep_anonymous_games_unlinked(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    daily_response = client.post(
+        "/challenges/daily/start",
+    )
+
+    infinite_response = client.post(
+        "/infinite/start",
+    )
+
+    assert daily_response.status_code == 201
+    assert infinite_response.status_code == 201
+
+    game_session = db_session.get(
+        GameSessionModel,
+        UUID(
+            daily_response.json()["sessionId"],
+        ),
+    )
+
+    game_run = db_session.get(
+        InfiniteRunModel,
+        UUID(
+            infinite_response.json()["runId"],
+        ),
+    )
+
+    assert game_session is not None
+    assert game_run is not None
+
+    assert game_session.user_id is None
+    assert game_run.user_id is None

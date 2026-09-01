@@ -30,6 +30,10 @@ from app.services.audio_files import (
 from app.services.answer_normalization import(
     normalize_answer,
 )
+from app.dependencies.authentication import (
+    get_optional_current_user,
+)
+from app.models.user import UserModel
 
 router = APIRouter(
     prefix="/challenges",
@@ -43,6 +47,10 @@ DatabaseSession = Annotated[
     Depends(get_db),
 ]
 
+OptionalCurrentUser = Annotated[
+    UserModel | None,
+    Depends(get_optional_current_user),
+]
 
 
 
@@ -118,12 +126,14 @@ def read_daily_audio(
 )
 def start_daily_challenge(
     db: DatabaseSession,
+    current_user: OptionalCurrentUser,
 ) -> StartDailyChallengeResponse:
     daily_challenge = get_daily_challenge_service(db)
 
     game_session = create_game_session(
         db,
         daily_challenge.id,
+        user_id=(current_user.id if current_user is not None else None)
     )
 
     return StartDailyChallengeResponse(
