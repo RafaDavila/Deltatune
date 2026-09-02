@@ -190,3 +190,22 @@ def create_next_infinite_round(
     db.refresh(next_round)
 
     return next_round
+
+def get_user_infinite_record(
+    db: Session,
+    user_id: UUID,
+) -> int:
+    statement = (
+        select(
+            func.max(
+                InfiniteRunModel.current_streak,
+            )
+        )
+        .where(
+            InfiniteRunModel.user_id == user_id,
+        )
+    )
+
+    record = db.scalar(statement)
+
+    return record if record is not None else 0

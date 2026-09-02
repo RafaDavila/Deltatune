@@ -12,6 +12,133 @@ from app.services.daily_challenge import (
 
 from sqlalchemy.orm import Session
 
+
+def create_authenticated_headers(
+    client: TestClient,
+) -> dict[str, str]:
+    client.post(
+        "/auth/register",
+        json={
+            "displayName": "Rafael",
+            "email": "rafael@example.com",
+            "password": "Deltarune123!",
+        },
+    )
+
+    login = client.post(
+        "/auth/login",
+        json={
+            "email": "rafael@example.com",
+            "password": "Deltarune123!",
+        },
+    ).json()
+
+    return {
+        "Authorization": (
+            f"Bearer {login['accessToken']}"
+        ),
+    }
+
+
+def get_today_week_day(
+    response_data: dict[str, object],
+) -> dict[str, object]:
+    today_id = datetime.now(
+        GAME_TIME_ZONE,
+    ).date().isoformat()
+
+    return next(
+        day
+        for day in response_data["days"]
+        if day["challengeId"] == today_id
+    )
+
+
+def test_show_started_daily_game_as_in_progress(
+    client: TestClient,
+) -> None:
+    headers = create_authenticated_headers(client)
+
+    start_response = client.post(
+        "/challenges/daily/start",
+        headers=headers,
+    )
+    week_response = client.get(
+        "/challenges/daily/week",
+        headers=headers,
+    )
+    today = get_today_week_day(week_response.json())
+
+    assert week_response.status_code == 200
+    assert today["status"] == "in_progress"
+    assert today["attemptsUsed"] == 0
+    assert today["sessionId"] == start_response.json()["sessionId"]
+
+
+def test_show_won_daily_game_in_week(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    headers = create_authenticated_headers(client)
+    start_response = client.post(
+        "/challenges/daily/start",
+        headers=headers,
+    )
+    start_data = start_response.json()
+    daily_challenge = get_daily_challenge(db_session)
+
+    guess_response = client.post(
+        "/challenges/daily/guess",
+        headers=headers,
+        json={
+            "sessionId": start_data["sessionId"],
+            "challengeId": start_data["challengeId"],
+            "answer": daily_challenge.song.title,
+        },
+    )
+
+    week_response = client.get(
+        "/challenges/daily/week",
+        headers=headers,
+    )
+    today = get_today_week_day(week_response.json())
+
+    assert guess_response.status_code == 200
+    assert today["status"] == "won"
+    assert today["attemptsUsed"] == 1
+
+
+def test_show_lost_daily_game_in_week(
+    client: TestClient,
+) -> None:
+    headers = create_authenticated_headers(client)
+    start_response = client.post(
+        "/challenges/daily/start",
+        headers=headers,
+    )
+    start_data = start_response.json()
+
+    for _ in range(6):
+        skip_response = client.post(
+            "/challenges/daily/skip",
+            headers=headers,
+            json={
+                "sessionId": start_data["sessionId"],
+                "challengeId": start_data["challengeId"],
+            },
+        )
+        assert skip_response.status_code == 200
+
+    week_response = client.get(
+        "/challenges/daily/week",
+        headers=headers,
+    )
+    today = get_today_week_day(week_response.json())
+
+    assert today["status"] == "lost"
+    assert today["attemptsUsed"] == 6
+
+
 def test_get_week_dates_from_sunday_to_saturday(
 ) -> None:
     week_dates = get_week_dates(

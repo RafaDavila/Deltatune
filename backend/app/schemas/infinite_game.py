@@ -149,3 +149,8 @@ class ResumeInfiniteGameResponse(
         default=None,
         serialization_alias="songTitle",
     )
+
+class InfiniteRecordResponse(BaseModel):
+    best_streak: int = Field(
+        serialization_alias="bestStreak",
+    )

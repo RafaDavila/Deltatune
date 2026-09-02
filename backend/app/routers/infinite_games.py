@@ -1,4 +1,5 @@
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import (
     APIRouter,
@@ -6,49 +7,20 @@ from fastapi import (
     HTTPException,
     status,
 )
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.dependencies.authentication import (
+    get_current_user,
+    get_optional_current_user,
+)
 from app.models.game_session import MAX_ATTEMPTS
-from app.schemas.infinite_game import (
-    StartInfiniteGameResponse,
-)
-
-from uuid import UUID
-from fastapi.responses import FileResponse
-from app.repositories.infinite_games import (
-    create_infinite_run,
-    get_infinite_round,
-    get_infinite_run,
-)
-from app.services.audio_files import (
-    find_audio_file,
-)
-
-from app.repositories.infinite_games import (
-    add_infinite_attempt,
-    create_infinite_run,
-    get_infinite_round,
-    get_infinite_run,
-)
-from app.schemas.infinite_game import (
-    InfiniteGuessRequest,
-    InfiniteGuessResponse,
-    InfiniteNextRequest,
-    InfiniteSkipRequest,
-    InfiniteSkipResponse,
-    InfiniteAttemptResponse,
-    ResumeInfiniteGameResponse,
-    StartInfiniteGameResponse,
-)
-from app.services.answer_normalization import (
-    normalize_answer,
-)
 from app.models.infinite_game import (
     InfiniteRoundModel,
     InfiniteRunModel,
 )
-
+from app.models.user import UserModel
 from app.repositories.infinite_games import (
     add_infinite_attempt,
     create_infinite_run,
@@ -56,12 +28,25 @@ from app.repositories.infinite_games import (
     get_infinite_round,
     get_infinite_run,
     get_latest_infinite_round,
+    get_user_infinite_record,
 )
-
-from app.dependencies.authentication import (
-    get_optional_current_user,
+from app.schemas.infinite_game import (
+    InfiniteAttemptResponse,
+    InfiniteGuessRequest,
+    InfiniteGuessResponse,
+    InfiniteNextRequest,
+    InfiniteRecordResponse,
+    InfiniteSkipRequest,
+    InfiniteSkipResponse,
+    ResumeInfiniteGameResponse,
+    StartInfiniteGameResponse,
 )
-from app.models.user import UserModel
+from app.services.answer_normalization import (
+    normalize_answer,
+)
+from app.services.audio_files import (
+    find_audio_file,
+)
 
 router = APIRouter(
     prefix="/infinite",
@@ -76,6 +61,11 @@ DatabaseSession = Annotated[
 OptionalCurrentUser = Annotated[
     UserModel | None,
     Depends(get_optional_current_user),
+]
+
+CurrentUser = Annotated[
+    UserModel,
+    Depends(get_current_user),
 ]
 
 def get_validated_infinite_round(
@@ -173,6 +163,23 @@ def start_infinite_game(
         ),
         maximum_attempts=MAX_ATTEMPTS,
         current_streak=game_run.current_streak,
+    )
+
+@router.get(
+    "/record",
+    response_model=InfiniteRecordResponse,
+)
+def read_infinite_record(
+    db: DatabaseSession,
+    current_user: CurrentUser,
+) -> InfiniteRecordResponse:
+    best_streak = get_user_infinite_record(
+        db,
+        current_user.id,
+    )
+
+    return InfiniteRecordResponse(
+        best_streak=best_streak,
     )
 
 @router.get(

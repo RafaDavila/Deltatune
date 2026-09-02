@@ -3,9 +3,40 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 from app.models.infinite_game import (
     InfiniteRoundModel,
+    InfiniteRunModel,
 )
 from sqlalchemy import func, select
 from app.models.song import SongModel
+
+def create_authenticated_user(
+    client: TestClient,
+    display_name: str,
+    email: str,
+) -> tuple[UUID, dict[str, str]]:
+    registration = client.post(
+        "/auth/register",
+        json={
+            "displayName": display_name,
+            "email": email,
+            "password": "Deltarune123!",
+        },
+    ).json()
+
+    login = client.post(
+        "/auth/login",
+        json={
+            "email": email,
+            "password": "Deltarune123!",
+        },
+    ).json()
+
+    headers = {
+        "Authorization": (
+            f"Bearer {login['accessToken']}"
+        ),
+    }
+
+    return UUID(registration["id"]), headers
 
 def test_start_infinite_game(
     client: TestClient,
@@ -649,3 +680,89 @@ def test_resume_finished_infinite_round(
         }
         for attempt in resumed_game["attempts"]
     )
+
+def test_reject_unauthenticated_infinite_record(
+    client: TestClient,
+) -> None:
+    response = client.get(
+        "/infinite/record",
+    )
+
+    assert response.status_code == 401
+    assert response.headers[
+        "www-authenticate"
+    ] == "Bearer"
+
+
+def test_return_zero_record_without_runs(
+    client: TestClient,
+) -> None:
+    _, headers = create_authenticated_user(
+        client,
+        "Rafael",
+        "rafael@example.com",
+    )
+
+    response = client.get(
+        "/infinite/record",
+        headers=headers,
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "bestStreak": 0,
+    }
+
+
+def test_return_best_record_only_from_current_user(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    user_id, headers = create_authenticated_user(
+        client,
+        "Rafael",
+        "rafael@example.com",
+    )
+
+    other_user_id, _ = create_authenticated_user(
+        client,
+        "Outro jogador",
+        "outro@example.com",
+    )
+
+    db_session.add_all(
+        [
+            InfiniteRunModel(
+                user_id=user_id,
+                current_streak=3,
+            ),
+            InfiniteRunModel(
+                user_id=user_id,
+                current_streak=12,
+            ),
+            InfiniteRunModel(
+                user_id=user_id,
+                current_streak=7,
+            ),
+            InfiniteRunModel(
+                user_id=other_user_id,
+                current_streak=99,
+            ),
+            InfiniteRunModel(
+                user_id=None,
+                current_streak=200,
+            ),
+        ]
+    )
+
+    db_session.commit()
+
+    response = client.get(
+        "/infinite/record",
+        headers=headers,
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "bestStreak": 12,
+    }
