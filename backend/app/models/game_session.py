@@ -18,6 +18,13 @@ MAX_ATTEMPTS = 6
 
 class GameSessionModel(Base):
     __tablename__ = "game_sessions"
+    __table_args__= (
+        UniqueConstraint(
+            "user_id",
+            "challenge_id",
+            name="uq_game_sessions_user_challenge",
+        ),
+    )
 
     id: Mapped[UUID] = mapped_column(
         PostgreSQLUUID(as_uuid=True),

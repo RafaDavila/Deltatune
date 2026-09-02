@@ -1,5 +1,6 @@
 from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+from typing import Literal
 
 class DailyChallengeResponse(BaseModel):
     challenge_id: str = Field(serialization_alias="challengeId")
@@ -117,3 +118,32 @@ class SkipResponse(BaseModel):
         default=None,
         alias="songTitle",
     )
+
+DailyWeekStatus = Literal[
+    "won",
+    "lost",
+    "in_progress",
+    "not_played",
+    "unavailable",
+]
+
+
+class DailyWeekDayResponse(BaseModel):
+    challenge_id: str = Field(
+        serialization_alias="challengeId",
+    )
+    challenge_number: int = Field(
+        serialization_alias="challengeNumber",
+    )
+    status: DailyWeekStatus
+    attempts_used: int = Field(
+        serialization_alias="attemptsUsed",
+    )
+    session_id: str | None = Field(
+        default=None,
+        serialization_alias="sessionId",
+    )
+
+
+class DailyWeekResponse(BaseModel):
+    days: list[DailyWeekDayResponse]

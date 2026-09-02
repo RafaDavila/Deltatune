@@ -1,11 +1,32 @@
+from datetime import date, datetime
+
 from fastapi.testclient import TestClient
 from uuid import uuid4
 from app.services.daily_challenge import (
+    CHALLENGE_START_DATE,
+    GAME_TIME_ZONE,
     get_daily_challenge,
     DAILY_ROTATION,
+    get_week_dates,
 )
 
 from sqlalchemy.orm import Session
+
+def test_get_week_dates_from_sunday_to_saturday(
+) -> None:
+    week_dates = get_week_dates(
+        date(2026, 9, 2),
+    )
+
+    assert week_dates == (
+        date(2026, 8, 30),
+        date(2026, 8, 31),
+        date(2026, 9, 1),
+        date(2026, 9, 2),
+        date(2026, 9, 3),
+        date(2026, 9, 4),
+        date(2026, 9, 5),
+    )
 
 def test_correct_daily_guess(
     client: TestClient,
@@ -400,3 +421,82 @@ def test_reject_repeated_wrong_guess(
 
     assert len(resumed_game["attempts"]) == 1
     assert resumed_game["remainingLives"] == 5
+
+def test_reject_unauthenticated_daily_week(
+    client: TestClient,
+) -> None:
+    response = client.get(
+        "/challenges/daily/week",
+    )
+
+    assert response.status_code == 401
+    assert response.headers[
+        "www-authenticate"
+    ] == "Bearer"
+
+
+def test_return_empty_daily_week_for_user(
+    client: TestClient,
+) -> None:
+    client.post(
+        "/auth/register",
+        json={
+            "displayName": "Rafael",
+            "email": "rafael@example.com",
+            "password": "Deltarune123!",
+        },
+    )
+
+    login = client.post(
+        "/auth/login",
+        json={
+            "email": "rafael@example.com",
+            "password": "Deltarune123!",
+        },
+    ).json()
+
+    response = client.get(
+        "/challenges/daily/week",
+        headers={
+            "Authorization": (
+                f"Bearer {login['accessToken']}"
+            ),
+        },
+    )
+
+    assert response.status_code == 200
+
+    days = response.json()["days"]
+
+    today = datetime.now(
+        GAME_TIME_ZONE,
+    ).date()
+
+    week_dates = get_week_dates(today)
+
+    assert len(days) == 7
+
+    assert [
+        day["challengeId"]
+        for day in days
+    ] == [
+        challenge_date.isoformat()
+        for challenge_date in week_dates
+    ]
+
+    for day, challenge_date in zip(
+        days,
+        week_dates,
+        strict=True,
+    ):
+        if (
+            challenge_date < CHALLENGE_START_DATE
+            or challenge_date > today
+        ):
+            expected_status = "unavailable"
+        else:
+            expected_status = "not_played"
+
+        assert day["status"] == expected_status
+        assert day["attemptsUsed"] == 0
+        assert day["sessionId"] is None

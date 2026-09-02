@@ -402,3 +402,66 @@ def test_keep_anonymous_games_unlinked(
 
     assert game_session.user_id is None
     assert game_run.user_id is None
+
+def test_reuse_daily_session_for_authenticated_user(
+    client: TestClient,
+) -> None:
+    client.post(
+        "/auth/register",
+        json={
+            "displayName": "Rafael",
+            "email": "rafael@example.com",
+            "password": "Deltarune123!",
+        },
+    )
+
+    login = client.post(
+        "/auth/login",
+        json={
+            "email": "rafael@example.com",
+            "password": "Deltarune123!",
+        },
+    ).json()
+
+    headers = {
+        "Authorization": (
+            f"Bearer {login['accessToken']}"
+        ),
+    }
+
+    first_start = client.post(
+        "/challenges/daily/start",
+        headers=headers,
+    )
+
+    second_start = client.post(
+        "/challenges/daily/start",
+        headers=headers,
+    )
+
+    assert first_start.status_code == 201
+    assert second_start.status_code == 201
+
+    assert (
+        first_start.json()["sessionId"]
+        == second_start.json()["sessionId"]
+    )
+
+def test_create_distinct_daily_sessions_for_anonymous_user(
+    client: TestClient,
+) -> None:
+    first_start = client.post(
+        "/challenges/daily/start",
+    )
+
+    second_start = client.post(
+        "/challenges/daily/start",
+    )
+
+    assert first_start.status_code == 201
+    assert second_start.status_code == 201
+
+    assert (
+        first_start.json()["sessionId"]
+        != second_start.json()["sessionId"]
+    )

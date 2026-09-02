@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
+from datetime import datetime
 
 from app.schemas.challenge import (
     DailyChallengeResponse,
@@ -8,9 +9,14 @@ from app.schemas.challenge import (
     SkipRequest,
     SkipResponse,
     StartDailyChallengeResponse,
+    DailyWeekDayResponse,
+    DailyWeekResponse,
 )
 from app.services.daily_challenge import (
+    CHALLENGE_START_DATE,
+    GAME_TIME_ZONE,
     get_daily_challenge as get_daily_challenge_service,
+    get_week_dates,
 )
 
 from typing import Annotated
@@ -22,6 +28,8 @@ from app.repositories.game_sessions import (
     add_attempt,
     create_game_session,
     get_game_session,
+    get_game_session_by_user_and_challenge,
+    list_game_sessions_by_user_and_period,
 )
 from fastapi.responses import FileResponse
 from app.services.audio_files import (
@@ -31,6 +39,7 @@ from app.services.answer_normalization import(
     normalize_answer,
 )
 from app.dependencies.authentication import (
+    get_current_user,
     get_optional_current_user,
 )
 from app.models.user import UserModel
@@ -50,6 +59,11 @@ DatabaseSession = Annotated[
 OptionalCurrentUser = Annotated[
     UserModel | None,
     Depends(get_optional_current_user),
+]
+
+CurrentUser = Annotated[
+    UserModel,
+    Depends(get_current_user),
 ]
 
 
@@ -88,6 +102,86 @@ def read_daily_challenge(
         next_reset_at=daily_challenge.next_reset_at,
     )
 
+@router.get(
+    "/daily/week",
+    response_model=DailyWeekResponse,
+)
+def read_daily_week(
+    db: DatabaseSession,
+    current_user: CurrentUser,
+) -> DailyWeekResponse:
+    today = datetime.now(
+        GAME_TIME_ZONE,
+    ).date()
+
+    week_dates = get_week_dates(today)
+
+    sessions = (
+        list_game_sessions_by_user_and_period(
+            db,
+            current_user.id,
+            week_dates[0],
+            week_dates[-1],
+        )
+    )
+
+    sessions_by_challenge = {
+        session.challenge_id: session
+        for session in sessions
+    }
+
+    days: list[DailyWeekDayResponse] = []
+
+    for challenge_date in week_dates:
+        challenge_id = challenge_date.isoformat()
+
+        game_session = sessions_by_challenge.get(
+            challenge_id,
+        )
+
+        if (
+            challenge_date < CHALLENGE_START_DATE
+            or challenge_date > today
+        ):
+            day_status = "unavailable"
+        elif game_session is None:
+            day_status = "not_played"
+        elif game_session.won:
+            day_status = "won"
+        elif game_session.finished:
+            day_status = "lost"
+        else:
+            day_status = "in_progress"
+
+        challenge_number = max(
+            (
+                challenge_date
+                - CHALLENGE_START_DATE
+            ).days + 1,
+            1,
+        )
+
+        days.append(
+            DailyWeekDayResponse(
+                challenge_id=challenge_id,
+                challenge_number=challenge_number,
+                status=day_status,
+                attempts_used=(
+                    len(game_session.attempts)
+                    if game_session is not None
+                    else 0
+                ),
+                session_id=(
+                    str(game_session.id)
+                    if game_session is not None
+                    else None
+                ),
+            )
+        )
+
+    return DailyWeekResponse(
+        days=days,
+    )
 
 @router.get(
     "/daily/audio",
@@ -130,11 +224,27 @@ def start_daily_challenge(
 ) -> StartDailyChallengeResponse:
     daily_challenge = get_daily_challenge_service(db)
 
-    game_session = create_game_session(
-        db,
-        daily_challenge.id,
-        user_id=(current_user.id if current_user is not None else None)
-    )
+    game_session = None
+
+    if current_user is not None:
+        game_session = (
+            get_game_session_by_user_and_challenge(
+                db,
+                current_user.id,
+                daily_challenge.id,
+            )
+        )
+
+    if game_session is None:
+        game_session = create_game_session(
+            db,
+            daily_challenge.id,
+            user_id=(
+                current_user.id
+                if current_user is not None
+                else None
+            ),
+        )
 
     return StartDailyChallengeResponse(
         challenge_id=daily_challenge.id,

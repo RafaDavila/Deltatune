@@ -31,6 +31,19 @@ class DailyChallenge:
     song: SongModel
     next_reset_at: datetime
 
+def get_week_dates (
+        reference_date: date,
+)-> tuple[date, ...]:
+    days_since_sunday = (
+        reference_date.weekday() + 1
+    ) % 7
+
+    week_start = reference_date - timedelta(days=days_since_sunday)
+
+    return tuple(
+        week_start + timedelta(days=offset)
+        for offset in range(7)
+    )
 
 def get_daily_challenge(
     db: Session,
