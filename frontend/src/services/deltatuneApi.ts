@@ -25,13 +25,153 @@ export type SkipResponse = {
   songTitle: string | null;
 };
 
+import { getAccessToken } from "./authStorage";
+
+export type UserResponse = {
+  id: string;
+  displayName: string;
+  email: string;
+  isActive: boolean;
+  createdAt: string;
+};
+
+export type RegisterUserInput = {
+  displayName: string;
+  email: string;
+  password: string;
+};
+
+export type LoginInput = {
+  email: string;
+  password: string;
+};
+
+export type TokenResponse = {
+  accessToken: string;
+  tokenType: string;
+};
+
 const API_BASE_URL = (
   import.meta.env.VITE_API_URL ??
   "http://127.0.0.1:8000"
 ).replace(/\/$/, "");
 
+async function apiFetch(
+  path: string,
+  options: RequestInit = {},
+): Promise<Response> {
+  const headers = new Headers(
+    options.headers,
+  );
+
+  const accessToken = getAccessToken();
+
+  if (accessToken !== null) {
+    headers.set(
+      "Authorization",
+      `Bearer ${accessToken}`,
+    );
+  }
+
+  return fetch(
+    `${API_BASE_URL}${path}`,
+    {
+      ...options,
+      headers,
+    },
+  );
+}
+
+async function readErrorMessage(
+  response: Response,
+  fallbackMessage: string,
+): Promise<string> {
+  const errorData = await response
+    .json()
+    .catch(() => null) as {
+      detail?: string;
+    } | null;
+
+  return (
+    errorData?.detail ??
+    fallbackMessage
+  );
+}
+
+export async function registerUser(
+  input: RegisterUserInput,
+): Promise<UserResponse> {
+  const response = await apiFetch(
+    "/auth/register",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(input),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      await readErrorMessage(
+        response,
+        "Não foi possível criar a conta.",
+      ),
+    );
+  }
+
+  return response.json();
+}
+
+
+export async function loginUser(
+  input: LoginInput,
+): Promise<TokenResponse> {
+  const response = await apiFetch(
+    "/auth/login",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(input),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      await readErrorMessage(
+        response,
+        "Não foi possível entrar na conta.",
+      ),
+    );
+  }
+
+  return response.json();
+}
+
+
+export async function getCurrentUser():
+  Promise<UserResponse> {
+  const response = await apiFetch(
+    "/auth/me",
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      await readErrorMessage(
+        response,
+        "Não foi possível carregar a conta.",
+      ),
+    );
+  }
+
+  return response.json();
+}
+
 export async function getSongs(): Promise<SongResponse[]> {
-  const response = await fetch(
+  const response = await apiFetch(
     `${API_BASE_URL}/songs`,
   );
 
@@ -45,7 +185,7 @@ export async function getSongs(): Promise<SongResponse[]> {
 }
 
 export async function getDailyChallenge(): Promise<DailyChallengeResponse> {
-  const response = await fetch(
+  const response = await apiFetch(
     `${API_BASE_URL}/challenges/daily`,
   );
 
@@ -57,7 +197,7 @@ export async function getDailyChallenge(): Promise<DailyChallengeResponse> {
 
 export async function startDailyChallenge():
   Promise<StartDailyChallengeResponse> {
-  const response = await fetch(
+  const response = await apiFetch(
     `${API_BASE_URL}/challenges/daily/start`,
     {
       method: "POST",

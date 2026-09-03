@@ -2,10 +2,54 @@ import { Link } from "react-router";
 import deltatuneLogo from "../assets/deltatune-logo.png";
 import heartIcon from "../assets/heart.png";
 import SiteFooter from "../components/SiteFooter";
+import { useState } from "react";
+
+import AuthModal from "../components/AuthModal";
+import { useAuth } from "../hooks/useAuth";
 
 function HomePage() {
+  const [isAuthOpen, setIsAuthOpen] =
+    useState(false);
+
+  const {
+    user,
+    isAuthenticated,
+    isLoading,
+    logout,
+  } = useAuth();
   return (
     <main className="home">
+      <div className="home__account">
+        {isLoading ? (
+          <span className="home__account-status">
+            Carregando conta...
+          </span>
+        ) : isAuthenticated && user !== null ? (
+          <>
+            <span className="home__account-name">
+              {user.displayName}
+            </span>
+
+            <button
+              className="home__account-button"
+              type="button"
+              onClick={logout}
+            >
+              Sair
+            </button>
+          </>
+        ) : (
+          <button
+            className="home__account-button"
+            type="button"
+            onClick={() => {
+              setIsAuthOpen(true);
+            }}
+          >
+            Entrar
+          </button>
+        )}
+      </div>
       <header className="home__header">
         <h1 className="home__title">
           <img
@@ -63,6 +107,13 @@ function HomePage() {
         </Link>
       </section>
       <SiteFooter />
+      {isAuthOpen && (
+        <AuthModal
+          onClose={() => {
+            setIsAuthOpen(false);
+          }}
+        />
+      )}
     </main>
   );
 }
