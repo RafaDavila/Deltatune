@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     test_database_url: str | None = None
 
     jwt_secret_key: SecretStr
-    jwt_access_token_expire_minutes: int = 30
+    jwt_access_token_expire_minutes: int = (60 * 24 * 7)
 
     cors_origins: list[str] = [
         "http://localhost:5173",

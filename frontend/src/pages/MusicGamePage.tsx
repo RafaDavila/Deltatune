@@ -11,6 +11,7 @@ import AttemptList from "../components/AttemptList";
 import AudioPlayer from "../components/AudioPlayer";
 import GuessForm from "../components/GuessForm";
 import useAudioClip from "../hooks/useAudioClip";
+import { useAuth } from "../hooks/useAuth";
 
 const DEFAULT_ATTEMPT_DURATIONS = [
   0.5,
@@ -23,7 +24,8 @@ const DEFAULT_ATTEMPT_DURATIONS = [
 
 
 
-const GAME_SESSION_STORAGE_KEY =
+
+const GAME_SESSION_STORAGE_PREFIX =
   "deltatune-daily-session";
 
 
@@ -50,6 +52,16 @@ function formatCountdown(
 }
 
 function MusicGamePage() {
+
+  const {
+    user,
+    isLoading: isAuthLoading,
+  } = useAuth();
+
+  const gameSessionStorageKey = (
+    `${GAME_SESSION_STORAGE_PREFIX}-` +
+    `${user?.id ?? "anonymous"}`
+  );
 
   const [sessionId, setSessionId] =
     useState<string | null>(null);
@@ -221,7 +233,7 @@ function MusicGamePage() {
       const challenge = await startDailyChallenge();
 
       localStorage.setItem(
-        GAME_SESSION_STORAGE_KEY,
+        gameSessionStorageKey,
         challenge.sessionId,
       );
 
@@ -233,85 +245,92 @@ function MusicGamePage() {
     }
 
     async function loadDailyChallenge() {
+      if (isAuthLoading) {
+        return;
+      }
+
       setIsChallengeLoading(true);
       setIsProgressLoaded(false);
 
       try {
-        const savedSessionId = localStorage.getItem(
-          GAME_SESSION_STORAGE_KEY,
-        );
+          const savedSessionId = localStorage.getItem(
+            gameSessionStorageKey,
+          );
 
-        let loadedGame;
+          let loadedGame;
 
-        if (savedSessionId) {
-          try {
-            const resumedGame =
-              await resumeDailyChallenge(
-                savedSessionId,
+          if (savedSessionId) {
+            try {
+              const resumedGame =
+                await resumeDailyChallenge(
+                  savedSessionId,
+                );
+
+              loadedGame = {
+                challenge: resumedGame,
+                attempts: resumedGame.attempts,
+                songTitle: resumedGame.songTitle,
+              };
+            } catch {
+              localStorage.removeItem(
+                gameSessionStorageKey,
               );
 
-            loadedGame = {
-              challenge: resumedGame,
-              attempts: resumedGame.attempts,
-              songTitle: resumedGame.songTitle,
-            };
-          } catch {
-            localStorage.removeItem(
-              GAME_SESSION_STORAGE_KEY,
-            );
-
+              loadedGame =
+                await createNewSession();
+            }
+          } else {
             loadedGame =
               await createNewSession();
           }
-        } else {
-          loadedGame =
-            await createNewSession();
-        }
 
-        if (cancelled) {
-          return;
-        }
+          if (cancelled) {
+            return;
+          }
 
-        setDailyChallenge(loadedGame.challenge);
-        setSessionId(
-          loadedGame.challenge.sessionId,
-        );
-        setAttemptResults(loadedGame.attempts);
-        setRevealedSongTitle(
-          loadedGame.songTitle,
-        );
-        setChallengeError(null);
-        setIsProgressLoaded(true);
-      } catch (error) {
-        if (cancelled) {
-          return;
-        }
+          setDailyChallenge(loadedGame.challenge);
+          setSessionId(
+            loadedGame.challenge.sessionId,
+          );
+          setAttemptResults(loadedGame.attempts);
+          setRevealedSongTitle(
+            loadedGame.songTitle,
+          );
+          setChallengeError(null);
+          setIsProgressLoaded(true);
+        } catch (error) {
+          if (cancelled) {
+            return;
+          }
 
-        console.error(
-          "Erro ao carregar partida:",
-          error,
-        );
+          console.error(
+            "Erro ao carregar partida:",
+            error,
+          );
 
-        setDailyChallenge(null);
-        setSessionId(null);
-        setAttemptResults([]);
-        setRevealedSongTitle(null);
-        setChallengeError(
-          "Não foi possível carregar a partida.",
-        );
-      } finally {
-        if (!cancelled) {
-          setIsChallengeLoading(false);
+          setDailyChallenge(null);
+          setSessionId(null);
+          setAttemptResults([]);
+          setRevealedSongTitle(null);
+          setChallengeError(
+            "Não foi possível carregar a partida.",
+          );
+        } finally {
+          if (!cancelled) {
+            setIsChallengeLoading(false);
+          }
         }
       }
-    }
 
-    loadDailyChallenge();
+      void loadDailyChallenge();
 
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+      return () => {
+        cancelled = true;
+      };
+    }, [
+      gameSessionStorageKey,
+      isAuthLoading,
+    ]);
 
 
   async function handleSkip() {

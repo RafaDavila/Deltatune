@@ -26,6 +26,7 @@ import {
   type InfiniteGameResponse,
 } from "../services/deltatuneApi";
 import type { AttemptResult } from "../types/game";
+import { useAuth } from "../hooks/useAuth";
 
 const DEFAULT_ATTEMPT_DURATIONS = [
   0.5,
@@ -36,7 +37,7 @@ const DEFAULT_ATTEMPT_DURATIONS = [
   16,
 ];
 
-const INFINITE_RUN_STORAGE_KEY =
+const INFINITE_RUN_STORAGE_PREFIX =
   "deltatune-infinite-run";
 
 const INFINITE_RECORD_STORAGE_KEY =
@@ -58,6 +59,15 @@ function loadInfiniteRecord(): number {
 }
 
 function InfiniteGamePage() {
+  const {
+    user,
+    isLoading: isAuthLoading,
+  } = useAuth();
+
+  const infiniteRunStorageKey = (
+    `${INFINITE_RUN_STORAGE_PREFIX}-` +
+    `${user?.id ?? "anonymous"}`
+  );
   const [bestStreak, setBestStreak] =
     useState(loadInfiniteRecord);
 
@@ -226,11 +236,15 @@ function InfiniteGamePage() {
   useEffect(() => {
     let cancelled = false;
 
+    if (isAuthLoading) {
+      return;
+    }
+
     async function createNewGame() {
       const newGame = await startInfiniteGame();
 
       localStorage.setItem(
-        INFINITE_RUN_STORAGE_KEY,
+        infiniteRunStorageKey,
         newGame.runId,
       );
 
@@ -242,78 +256,82 @@ function InfiniteGamePage() {
     }
 
     async function loadInfiniteGame() {
-      setIsGameLoading(true);
-      setIsProgressLoaded(false);
+          setIsGameLoading(true);
+          setIsProgressLoaded(false);
 
-      try {
-        const savedRunId = localStorage.getItem(
-          INFINITE_RUN_STORAGE_KEY,
-        );
-
-        let loadedGame;
-
-        if (savedRunId) {
           try {
-            const resumedGame =
-              await resumeInfiniteGame(savedRunId);
-
-            loadedGame = {
-              game: resumedGame,
-              attempts: resumedGame.attempts,
-              songTitle: resumedGame.songTitle,
-            };
-          } catch {
-            localStorage.removeItem(
-              INFINITE_RUN_STORAGE_KEY,
+            const savedRunId = localStorage.getItem(
+              infiniteRunStorageKey,
             );
 
-            loadedGame = await createNewGame();
+            let loadedGame;
+
+            if (savedRunId) {
+              try {
+                const resumedGame =
+                  await resumeInfiniteGame(savedRunId);
+
+                loadedGame = {
+                  game: resumedGame,
+                  attempts: resumedGame.attempts,
+                  songTitle: resumedGame.songTitle,
+                };
+              } catch {
+                localStorage.removeItem(
+                  infiniteRunStorageKey,
+                );
+
+                loadedGame = await createNewGame();
+              }
+            } else {
+              loadedGame = await createNewGame();
+            }
+
+            if (cancelled) {
+              return;
+            }
+
+            setGame(loadedGame.game);
+            updateBestStreak(loadedGame.game.currentStreak,);
+            setAttemptResults(loadedGame.attempts);
+            setRevealedSongTitle(
+              loadedGame.songTitle,
+            );
+            setGameError(null);
+            setIsProgressLoaded(true);
+          } catch (error) {
+            if (cancelled) {
+              return;
+            }
+
+            console.error(
+              "Erro ao carregar modo infinito:",
+              error,
+            );
+
+            setGame(null);
+            setAttemptResults([]);
+            setRevealedSongTitle(null);
+            setGameError(
+              "Não foi possível carregar o modo infinito.",
+            );
+          } finally {
+            if (!cancelled) {
+              setIsGameLoading(false);
+            }
           }
-        } else {
-          loadedGame = await createNewGame();
         }
 
-        if (cancelled) {
-          return;
-        }
+    void loadInfiniteGame();
 
-        setGame(loadedGame.game);
-        updateBestStreak(loadedGame.game.currentStreak,);
-        setAttemptResults(loadedGame.attempts);
-        setRevealedSongTitle(
-          loadedGame.songTitle,
-        );
-        setGameError(null);
-        setIsProgressLoaded(true);
-      } catch (error) {
-        if (cancelled) {
-          return;
-        }
-
-        console.error(
-          "Erro ao carregar modo infinito:",
-          error,
-        );
-
-        setGame(null);
-        setAttemptResults([]);
-        setRevealedSongTitle(null);
-        setGameError(
-          "Não foi possível carregar o modo infinito.",
-        );
-      } finally {
-        if (!cancelled) {
-          setIsGameLoading(false);
-        }
-      }
-    }
-
-    loadInfiniteGame();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [updateBestStreak]);
+      return () => {
+        cancelled = true;
+      };
+    }, [
+      infiniteRunStorageKey,
+      isAuthLoading,
+      updateBestStreak,
+    ]);
 
   useEffect(() => {
     if (!gameFinished) {
@@ -490,7 +508,7 @@ function InfiniteGamePage() {
         : await startInfiniteGame();
 
       localStorage.setItem(
-        INFINITE_RUN_STORAGE_KEY,
+        infiniteRunStorageKey,
         nextGame.runId,
       );
 

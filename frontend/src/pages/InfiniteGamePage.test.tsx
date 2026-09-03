@@ -20,6 +20,7 @@ import {
 } from "../services/deltatuneApi";
 
 vi.mock("../services/deltatuneApi", () => ({
+
   getSongs: vi.fn(),
   resumeInfiniteGame: vi.fn(),
   startInfiniteGame: vi.fn(),
@@ -29,6 +30,13 @@ vi.mock("../services/deltatuneApi", () => ({
   getInfiniteAudioUrl: vi.fn(
     () => "/infinite-audio.mp3",
   ),
+}));
+
+vi.mock("../hooks/useAuth", () => ({
+  useAuth: () => ({
+    user: null,
+    isLoading: false,
+  }),
 }));
 
 vi.mock("../hooks/useAudioClip", () => ({
@@ -84,6 +92,8 @@ function renderPage() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  localStorage.clear();
+
 
   vi.mocked(getSongs).mockResolvedValue([]);
 
@@ -109,7 +119,7 @@ test(
   "recupera a rodada infinita salva",
   async () => {
     localStorage.setItem(
-      "deltatune-infinite-run",
+      "deltatune-infinite-run-anonymous",
       resumedGame.runId,
     );
 
@@ -148,36 +158,36 @@ test(
 );
 
 test(
-    "registra e preserva o maior recorde",
-    async() => {
-        localStorage.setItem(
-            "deltatune-infinite-run",
-            resumedGame.runId,
-        );
+  "registra e preserva o maior recorde",
+  async () => {
+    localStorage.setItem(
+     "deltatune-infinite-run-anonymous",
+      resumedGame.runId,
+    );
 
-        localStorage.setItem(
-            "deltatune-infinite-record",
-            "1",
-        );
-        vi.mocked(
-            resumeInfiniteGame,
-        ).mockResolvedValue(resumedGame);
-        renderPage();
-        
-        await screen.findByText("003");
+    localStorage.setItem(
+      "deltatune-infinite-record",
+      "1",
+    );
+    vi.mocked(
+      resumeInfiniteGame,
+    ).mockResolvedValue(resumedGame);
+    renderPage();
 
-        await waitFor(() =>{
-            expect(
-                localStorage.getItem(
-                    "deltatune-infinite-record",
-                ),
-            ).toBe("2");
-        });
+    await screen.findByText("003");
 
-        expect(
-            screen.getByText(/Sequência atual:/),
-        ).toHaveTextContent(
-            "Sequência atual: 2 . Recorde: 2",
-        );
-    },
+    await waitFor(() => {
+      expect(
+        localStorage.getItem(
+          "deltatune-infinite-record",
+        ),
+      ).toBe("2");
+    });
+
+    expect(
+      screen.getByText(/Sequência atual:/),
+    ).toHaveTextContent(
+      "Sequência atual: 2 . Recorde: 2",
+    );
+  },
 );
