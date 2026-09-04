@@ -1,16 +1,23 @@
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from fastapi.testclient import TestClient
-from uuid import uuid4
+from uuid import UUID, uuid4
 from app.services.daily_challenge import (
     CHALLENGE_START_DATE,
     GAME_TIME_ZONE,
+    calculate_daily_streaks,
     get_daily_challenge,
     DAILY_ROTATION,
     get_week_dates,
+    calculate_daily_streaks,
 )
 
 from sqlalchemy.orm import Session
+
+from app.models.game_session import (
+    AttemptModel,
+    GameSessionModel,
+)
 
 
 def create_authenticated_headers(
@@ -627,3 +634,163 @@ def test_return_empty_daily_week_for_user(
         assert day["status"] == expected_status
         assert day["attemptsUsed"] == 0
         assert day["sessionId"] is None
+
+def create_daily_session_for_streak(
+    challenge_id: str,
+    statuses: list[str],
+) -> GameSessionModel:
+    game_session = GameSessionModel(
+        challenge_id=challenge_id,
+    )
+
+    game_session.attempts = [
+        AttemptModel(
+            attempt_number=index,
+            answer="Teste",
+            status=attempt_status,
+        )
+        for index, attempt_status in enumerate(
+            statuses,
+            start=1,
+        )
+    ]
+
+    return game_session
+
+def test_preserve_daily_streak_before_playing_today() -> None:
+    sessions = [
+        create_daily_session_for_streak(
+            "2026-08-24",
+            ["correct"],
+        ),
+        create_daily_session_for_streak(
+            "2026-08-25",
+            ["correct"],
+        ),
+    ]
+
+    result = calculate_daily_streaks(
+        sessions,
+        today=date(2026, 8, 26),
+    )
+
+    assert result == (2, 2)
+
+
+def test_break_daily_streak_after_missed_day() -> None:
+    sessions = [
+        create_daily_session_for_streak(
+            "2026-08-24",
+            ["correct"],
+        ),
+        create_daily_session_for_streak(
+            "2026-08-26",
+            ["correct"],
+        ),
+    ]
+
+    result = calculate_daily_streaks(
+        sessions,
+        today=date(2026, 8, 26),
+    )
+
+    assert result == (1, 1)
+
+
+def test_reset_daily_streak_after_loss() -> None:
+    sessions = [
+        create_daily_session_for_streak(
+            "2026-08-24",
+            ["correct"],
+        ),
+        create_daily_session_for_streak(
+            "2026-08-25",
+            ["correct"],
+        ),
+        create_daily_session_for_streak(
+            "2026-08-26",
+            ["wrong"] * 6,
+        ),
+    ]
+
+    result = calculate_daily_streaks(
+        sessions,
+        today=date(2026, 8, 26),
+    )
+
+    assert result == (0, 2)
+
+def test_require_authentication_for_daily_stats(
+    client: TestClient,
+) -> None:
+    response = client.get(
+        "/challenges/daily/stats",
+    )
+
+    assert response.status_code == 401
+
+
+def test_return_daily_streak_stats(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    registration = client.post(
+        "/auth/register",
+        json={
+            "displayName": "Rafael",
+            "email": "rafael@example.com",
+            "password": "Deltarune123!",
+        },
+    ).json()
+
+    login = client.post(
+        "/auth/login",
+        json={
+            "email": "rafael@example.com",
+            "password": "Deltarune123!",
+        },
+    ).json()
+
+    user_id = UUID(registration["id"])
+
+    today = datetime.now(
+        GAME_TIME_ZONE,
+    ).date()
+
+    for challenge_date in (
+        today - timedelta(days=1),
+        today,
+    ):
+        game_session = GameSessionModel(
+            user_id=user_id,
+            challenge_id=(
+                challenge_date.isoformat()
+            ),
+        )
+
+        game_session.attempts.append(
+            AttemptModel(
+                attempt_number=1,
+                answer="Resposta correta",
+                status="correct",
+            )
+        )
+
+        db_session.add(game_session)
+
+    db_session.commit()
+
+    response = client.get(
+        "/challenges/daily/stats",
+        headers={
+            "Authorization": (
+                f"Bearer {login['accessToken']}"
+            ),
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "currentStreak": 2,
+        "bestStreak": 2,
+    }

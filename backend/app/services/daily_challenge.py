@@ -11,16 +11,71 @@ from sqlalchemy.orm import Session
 
 from app.models.song import SongModel
 from app.repositories.songs import get_song_by_id
+from app.models.game_session import (
+    GameSessionModel,
+)
 
 GAME_TIME_ZONE = ZoneInfo("America/Sao_Paulo")
 CHALLENGE_START_DATE = date(2026, 8, 24)
 DAILY_ROTATION = (
-    1, 11, 21, 20, 2, 40, 49, 7, 54, 10,
-    25, 42, 51, 6, 26, 23, 43, 28, 34, 33,
-    36, 37, 12, 9, 53, 16, 48, 35, 14, 55,
-    18, 24, 17, 45, 19, 47, 41, 52, 56, 57,
-    39, 5, 15, 58, 29, 13, 46, 38, 3, 32,
-    50, 30, 8, 27, 4, 44, 22, 31,
+    1,
+    11,
+    21,
+    20,
+    2,
+    40,
+    49,
+    7,
+    54,
+    10,
+    25,
+    42,
+    51,
+    6,
+    26,
+    23,
+    43,
+    28,
+    34,
+    33,
+    36,
+    37,
+    12,
+    9,
+    53,
+    16,
+    48,
+    35,
+    14,
+    55,
+    18,
+    24,
+    17,
+    45,
+    19,
+    47,
+    41,
+    52,
+    56,
+    57,
+    39,
+    5,
+    15,
+    58,
+    29,
+    13,
+    46,
+    38,
+    3,
+    32,
+    50,
+    30,
+    8,
+    27,
+    4,
+    44,
+    22,
+    31,
 )
 
 
@@ -31,19 +86,47 @@ class DailyChallenge:
     song: SongModel
     next_reset_at: datetime
 
-def get_week_dates (
-        reference_date: date,
-)-> tuple[date, ...]:
-    days_since_sunday = (
-        reference_date.weekday() + 1
-    ) % 7
+
+def get_week_dates(
+    reference_date: date,
+) -> tuple[date, ...]:
+    days_since_sunday = (reference_date.weekday() + 1) % 7
 
     week_start = reference_date - timedelta(days=days_since_sunday)
 
-    return tuple(
-        week_start + timedelta(days=offset)
-        for offset in range(7)
-    )
+    return tuple(week_start + timedelta(days=offset) for offset in range(7))
+
+
+def calculate_daily_streaks(
+    sessions: list[GameSessionModel],
+    today: date,
+) -> tuple[int, int]:
+    sessions_by_challenge = {session.challenge_id: session for session in sessions}
+
+    current_streak = 0
+    best_streak = 0
+    challenge_date = CHALLENGE_START_DATE
+
+    while challenge_date <= today:
+        session = sessions_by_challenge.get(
+            challenge_date.isoformat(),
+        )
+
+        if session is not None and session.won:
+            current_streak += 1
+            best_streak = max(
+                best_streak,
+                current_streak,
+            )
+        elif challenge_date == today and (session is None or not session.finished):
+            pass
+        else:
+            current_streak = 0
+
+        challenge_date += timedelta(days=1)
+
+    return current_streak, best_streak
+
 
 def get_daily_challenge(
     db: Session,

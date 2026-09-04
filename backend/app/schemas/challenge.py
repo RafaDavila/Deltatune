@@ -147,3 +147,11 @@ class DailyWeekDayResponse(BaseModel):
 
 class DailyWeekResponse(BaseModel):
     days: list[DailyWeekDayResponse]
+
+class DailyStreakResponse(BaseModel):
+    current_streak: int = Field(
+        serialization_alias="currentStreak",
+    )
+    best_streak: int = Field(
+        serialization_alias="bestStreak"
+    )

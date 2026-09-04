@@ -11,12 +11,14 @@ from app.schemas.challenge import (
     StartDailyChallengeResponse,
     DailyWeekDayResponse,
     DailyWeekResponse,
+    DailyStreakResponse,
 )
 from app.services.daily_challenge import (
     CHALLENGE_START_DATE,
     GAME_TIME_ZONE,
     get_daily_challenge as get_daily_challenge_service,
     get_week_dates,
+    calculate_daily_streaks,
 )
 
 from typing import Annotated
@@ -181,6 +183,39 @@ def read_daily_week(
 
     return DailyWeekResponse(
         days=days,
+    )
+
+@router.get(
+    "/daily/stats",
+    response_model=DailyStreakResponse,
+)
+def read_daily_stats(
+    db: DatabaseSession,
+    current_user: CurrentUser,
+) -> DailyStreakResponse:
+    today = datetime.now(
+        GAME_TIME_ZONE,
+    ).date()
+
+    sessions = (
+        list_game_sessions_by_user_and_period(
+            db,
+            current_user.id,
+            CHALLENGE_START_DATE,
+            today,
+        )
+    )
+
+    current_streak, best_streak = (
+        calculate_daily_streaks(
+            sessions,
+            today,
+        )
+    )
+
+    return DailyStreakResponse(
+        current_streak=current_streak,
+        best_streak=best_streak,
     )
 
 @router.get(
