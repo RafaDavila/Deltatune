@@ -51,6 +51,25 @@ export type TokenResponse = {
   tokenType: string;
 };
 
+export type DailyWeekStatus =
+  | "won"
+  | "lost"
+  | "in_progress"
+  | "not_played"
+  | "unavailable";
+
+export type DailyWeekDayResponse = {
+  challengeId: string;
+  challengeNumber: number;
+  status: DailyWeekStatus;
+  attemptsUsed: number;
+  sessionId: string | null;
+};
+
+export type DailyWeekResponse = {
+  days: DailyWeekDayResponse[];
+};
+
 const API_BASE_URL = (
   import.meta.env.VITE_API_URL ??
   "http://127.0.0.1:8000"
@@ -172,7 +191,7 @@ export async function getCurrentUser():
 
 export async function getSongs(): Promise<SongResponse[]> {
   const response = await apiFetch(
-    `${API_BASE_URL}/songs`,
+    "/songs",
   );
 
   if (!response.ok) {
@@ -186,7 +205,7 @@ export async function getSongs(): Promise<SongResponse[]> {
 
 export async function getDailyChallenge(): Promise<DailyChallengeResponse> {
   const response = await apiFetch(
-    `${API_BASE_URL}/challenges/daily`,
+    "/challenges/daily",
   );
 
   if (!response.ok) {
@@ -198,7 +217,7 @@ export async function getDailyChallenge(): Promise<DailyChallengeResponse> {
 export async function startDailyChallenge():
   Promise<StartDailyChallengeResponse> {
   const response = await apiFetch(
-    `${API_BASE_URL}/challenges/daily/start`,
+    "/challenges/daily/start",
     {
       method: "POST",
     },
@@ -235,13 +254,13 @@ export async function submitDailyGuess(
 
   if (!response.ok) {
     const errorData = await response
-    .json()
-    .catch(() => null) as {
-      detail?:string;
-    } | null;
+      .json()
+      .catch(() => null) as {
+        detail?: string;
+      } | null;
 
     throw new Error(
-        errorData?.detail ??
+      errorData?.detail ??
       "Não foi possível validar o palpite.",
     );
   }
@@ -331,6 +350,24 @@ export function getDailyAudioUrl(
   );
 }
 
+export async function getDailyWeek():
+  Promise<DailyWeekResponse> {
+  const response = await apiFetch(
+    "/challenges/daily/week",
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      await readErrorMessage(
+        response,
+        "Não foi possível carregar a semana.",
+      ),
+    );
+  }
+
+  return response.json();
+}
+
 export type InfiniteGameResponse = {
   runId: string;
   roundId: string;
@@ -370,10 +407,32 @@ export type ResumeInfiniteGameResponse =
     songTitle: string | null;
   };
 
+export type InfiniteRecordResponse = {
+  bestStreak: number;
+};
+
+export async function getInfiniteRecord():
+  Promise<InfiniteRecordResponse> {
+  const response = await apiFetch(
+    "/infinite/record",
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      await readErrorMessage(
+        response,
+        "Não foi possível carregar o recorde.",
+      ),
+    );
+  }
+
+  return response.json();
+}
+
 export async function startInfiniteGame():
   Promise<InfiniteGameResponse> {
   const response = await fetch(
-    `${API_BASE_URL}/infinite/start`,
+    "/infinite/start",
     {
       method: "POST",
     },
@@ -393,7 +452,7 @@ export async function resumeInfiniteGame(
 ): Promise<ResumeInfiniteGameResponse> {
   const response = await fetch(
     `${API_BASE_URL}/infinite/` +
-      encodeURIComponent(runId),
+    encodeURIComponent(runId),
   );
 
   if (!response.ok) {
@@ -434,7 +493,7 @@ export async function submitInfiniteGuess(
 
     throw new Error(
       errorData?.detail ??
-        "Não foi possível validar o palpite.",
+      "Não foi possível validar o palpite.",
     );
   }
 

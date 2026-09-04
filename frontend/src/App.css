@@ -140,25 +140,109 @@
   text-transform: uppercase;
 }
 
+.daily-week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.daily-week__day {
+  display: grid;
+  min-width: 0;
+  padding: 10px 4px;
+  color: #ffffff;
+  text-align: center;
+  background-color: #555561;
+  border-radius: 6px;
+}
+
+.daily-week__weekday {
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.daily-week__number {
+  margin-top: 5px;
+  font-size: 1.25rem;
+}
+
+.daily-week__day--won {
+  background-color: #237a42;
+}
+
+.daily-week__day--lost {
+  background-color: #a52d43;
+}
+
+.daily-week__day--in_progress {
+  background-color: #641079;
+}
+
+.daily-week__day--not_played {
+  background-color: #555561;
+}
+
+.daily-week__day--unavailable {
+  color: #696975;
+  background-color: #202028;
+}
+
 .game-card:disabled .game-card__heart {
   opacity: 0.3;
   filter: grayscale(1);
 }
 
+.game-card__week {
+  grid-column: 1 / -1;
+  width: 100%;
+  margin-top: 8px;
+}
+
+.game-card__week-message {
+  margin: 0;
+  color: #8d8d8d;
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.game-card__record {
+  grid-column: 2;
+  align-self: end;
+  margin: 12px 0 0;
+  color: #ffffff;
+  font-weight: 700;
+}
+
 @media (max-width: 760px) {
   .home__account {
-  margin-bottom: 16px;
-}
+    margin-bottom: 16px;
+  }
 
-.home__account-button {
-  padding: 8px 14px;
-  font-size: 0.85rem;
-}
+  .daily-week {
+    gap: 5px;
+  }
 
-.auth-modal__tab {
-  padding-inline: 6px;
-  font-size: 0.85rem;
-}
+  .daily-week__day {
+    padding: 8px 2px;
+  }
+
+  .daily-week__weekday {
+    font-size: 0.65rem;
+  }
+
+  .daily-week__number {
+    font-size: 1rem;
+  }
+
+  .home__account-button {
+    padding: 8px 14px;
+    font-size: 0.85rem;
+  }
+
+  .auth-modal__tab {
+    padding-inline: 6px;
+    font-size: 0.85rem;
+  }
 
   .home {
     padding: 36px 16px;
