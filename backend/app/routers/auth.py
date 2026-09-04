@@ -1,3 +1,25 @@
+import logging
+
+from datetime import (
+    datetime,
+    timedelta,
+    timezone,
+)
+
+from app.config import settings
+from app.repositories.password_reset_tokens import (
+    create_password_reset_token,
+    reset_password_with_token,
+)
+from app.services.email_service import (
+    EmailDeliveryError,
+    send_password_reset_email,
+)
+from app.services.password_reset_tokens import (
+    generate_password_reset_token,
+    hash_password_reset_token,
+)
+
 from typing import Annotated
 
 from fastapi import (
@@ -19,6 +41,9 @@ from app.schemas.auth import (
     RegisterUserRequest,
     TokenResponse,
     UserResponse,
+    ForgotPasswordRequest,
+    PasswordResetMessageResponse,
+    ResetPasswordRequest,
 )
 from app.services.passwords import hash_password, verify_password
 from app.services.tokens import create_access_token
@@ -40,6 +65,13 @@ CurrentUser = Annotated[
     UserModel,
     Depends(get_current_user),
 ]
+
+logger = logging.getLogger(__name__)
+
+PASSWORD_RESET_REQUEST_MESSAGE = (
+    "Se existir uma conta com este e-mail, "
+    "enviaremos as instruções de recuperação."
+)
 
 @router.post(
     "/register",
@@ -136,6 +168,106 @@ def login_user(
 
     return TokenResponse(
         access_token=access_token,
+    )
+
+@router.post(
+    "/forgot-password",
+    response_model=PasswordResetMessageResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+def forgot_password(
+    request: ForgotPasswordRequest,
+    db: DatabaseSession,
+) -> PasswordResetMessageResponse:
+    normalized_email = str(
+        request.email,
+    ).casefold()
+
+    user = get_user_by_email(
+        db,
+        normalized_email,
+    )
+
+    if user is not None and user.is_active:
+        reset_token = (
+            generate_password_reset_token()
+        )
+
+        token_hash = hash_password_reset_token(
+            reset_token,
+        )
+
+        expires_at = datetime.now(
+            timezone.utc,
+        ) + timedelta(
+            minutes=(
+                settings
+                .password_reset_token_expire_minutes
+            ),
+        )
+
+        create_password_reset_token(
+            db,
+            user.id,
+            token_hash,
+            expires_at,
+        )
+
+        try:
+            send_password_reset_email(
+                recipient_email=user.email,
+                reset_token=reset_token,
+            )
+        except EmailDeliveryError:
+            logger.exception(
+                "Falha ao enviar recuperação "
+                "para o usuário %s.",
+                user.id,
+            )
+
+    return PasswordResetMessageResponse(
+        message=PASSWORD_RESET_REQUEST_MESSAGE,
+    )
+
+@router.post(
+    "/reset-password",
+    response_model=PasswordResetMessageResponse,
+)
+def reset_password(
+    request: ResetPasswordRequest,
+    db: DatabaseSession,
+) -> PasswordResetMessageResponse:
+    token_hash = hash_password_reset_token(
+        request.token,
+    )
+
+    new_password_hash = hash_password(
+        request.new_password,
+    )
+
+    password_was_reset = (
+        reset_password_with_token(
+            db,
+            token_hash=token_hash,
+            new_password_hash=(
+                new_password_hash
+            ),
+        )
+    )
+
+    if not password_was_reset:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "O link de recuperação é inválido "
+                "ou expirou."
+            ),
+        )
+
+    return PasswordResetMessageResponse(
+        message=(
+            "Senha redefinida com sucesso."
+        ),
     )
 
 @router.get(

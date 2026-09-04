@@ -14,6 +14,8 @@ from app.models.password_reset_token import (
     PasswordResetTokenModel,
 )
 
+from app.models.user import UserModel
+
 
 def create_password_reset_token(
     db: Session,
@@ -73,3 +75,51 @@ def get_active_password_reset_token(
     )
 
     return db.scalar(statement)
+
+def reset_password_with_token(
+    db: Session,
+    token_hash: str,
+    new_password_hash: str,
+    now: datetime | None = None,
+) -> bool:
+    current_time = now or datetime.now(
+        timezone.utc,
+    )
+
+    statement = (
+        select(PasswordResetTokenModel)
+        .where(
+            PasswordResetTokenModel.token_hash
+            == token_hash,
+            PasswordResetTokenModel.used_at
+            .is_(None),
+            PasswordResetTokenModel.expires_at
+            > current_time,
+        )
+        .with_for_update()
+    )
+
+    reset_token = db.scalar(statement)
+
+    if reset_token is None:
+        return False
+
+    user = db.get(
+        UserModel,
+        reset_token.user_id,
+    )
+
+    if user is None or not user.is_active:
+        reset_token.used_at = current_time
+        db.commit()
+
+        return False
+
+    user.password_hash = new_password_hash
+    reset_token.used_at = current_time
+
+    db.add(user)
+    db.add(reset_token)
+    db.commit()
+
+    return True

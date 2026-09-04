@@ -22,6 +22,15 @@ from app.models.infinite_game import (
     InfiniteRunModel,
 )
 
+from pytest import MonkeyPatch
+
+from app.repositories.password_reset_tokens import (
+    get_active_password_reset_token,
+)
+from app.services.password_reset_tokens import (
+    hash_password_reset_token,
+)
+
 def test_register_user(
     client: TestClient,
     db_session: Session,
@@ -464,4 +473,203 @@ def test_create_distinct_daily_sessions_for_anonymous_user(
     assert (
         first_start.json()["sessionId"]
         != second_start.json()["sessionId"]
+    )
+
+def test_request_password_reset(
+    client: TestClient,
+    db_session: Session,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    client.post(
+        "/auth/register",
+        json={
+            "displayName": "Rafael",
+            "email": "rafael@example.com",
+            "password": "Deltarune123!",
+        },
+    )
+
+    captured_email: dict[str, str] = {}
+
+    def fake_send_password_reset_email(
+        recipient_email: str,
+        reset_token: str,
+    ) -> None:
+        captured_email["recipient"] = (
+            recipient_email
+        )
+        captured_email["token"] = reset_token
+
+    monkeypatch.setattr(
+        "app.routers.auth."
+        "send_password_reset_email",
+        fake_send_password_reset_email,
+    )
+
+    response = client.post(
+        "/auth/forgot-password",
+        json={
+            "email": "rafael@example.com",
+        },
+    )
+
+    assert response.status_code == 202
+    assert (
+        "Se existir uma conta"
+        in response.json()["message"]
+    )
+
+    assert (
+        captured_email["recipient"]
+        == "rafael@example.com"
+    )
+
+    raw_token = captured_email["token"]
+    token_hash = hash_password_reset_token(
+        raw_token,
+    )
+
+    saved_token = (
+        get_active_password_reset_token(
+            db_session,
+            token_hash,
+        )
+    )
+
+    assert saved_token is not None
+    assert saved_token.token_hash != raw_token
+
+
+def test_hide_unknown_password_reset_email(
+    client: TestClient,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    sent_tokens: list[str] = []
+
+    def fake_send_password_reset_email(
+        recipient_email: str,
+        reset_token: str,
+    ) -> None:
+        sent_tokens.append(reset_token)
+
+    monkeypatch.setattr(
+        "app.routers.auth."
+        "send_password_reset_email",
+        fake_send_password_reset_email,
+    )
+
+    response = client.post(
+        "/auth/forgot-password",
+        json={
+            "email": "desconhecido@example.com",
+        },
+    )
+
+    assert response.status_code == 202
+    assert (
+        "Se existir uma conta"
+        in response.json()["message"]
+    )
+    assert sent_tokens == []
+
+def test_reset_password_flow(
+    client: TestClient,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    client.post(
+        "/auth/register",
+        json={
+            "displayName": "Rafael",
+            "email": "rafael@example.com",
+            "password": "SenhaAntiga123!",
+        },
+    )
+
+    captured_token: dict[str, str] = {}
+
+    def fake_send_password_reset_email(
+        recipient_email: str,
+        reset_token: str,
+    ) -> None:
+        captured_token["value"] = reset_token
+
+    monkeypatch.setattr(
+        "app.routers.auth."
+        "send_password_reset_email",
+        fake_send_password_reset_email,
+    )
+
+    request_response = client.post(
+        "/auth/forgot-password",
+        json={
+            "email": "rafael@example.com",
+        },
+    )
+
+    assert request_response.status_code == 202
+
+    reset_token = captured_token["value"]
+
+    reset_response = client.post(
+        "/auth/reset-password",
+        json={
+            "token": reset_token,
+            "newPassword": "SenhaNova123!",
+        },
+    )
+
+    assert reset_response.status_code == 200
+    assert reset_response.json() == {
+        "message": "Senha redefinida com sucesso.",
+    }
+
+    old_login = client.post(
+        "/auth/login",
+        json={
+            "email": "rafael@example.com",
+            "password": "SenhaAntiga123!",
+        },
+    )
+
+    new_login = client.post(
+        "/auth/login",
+        json={
+            "email": "rafael@example.com",
+            "password": "SenhaNova123!",
+        },
+    )
+
+    assert old_login.status_code == 401
+    assert new_login.status_code == 200
+
+    reused_response = client.post(
+        "/auth/reset-password",
+        json={
+            "token": reset_token,
+            "newPassword": "OutraSenha123!",
+        },
+    )
+
+    assert reused_response.status_code == 400
+    assert reused_response.json()["detail"] == (
+        "O link de recuperação é inválido "
+        "ou expirou."
+    )
+
+
+def test_reject_unknown_password_reset_token(
+    client: TestClient,
+) -> None:
+    response = client.post(
+        "/auth/reset-password",
+        json={
+            "token": "x" * 43,
+            "newPassword": "SenhaNova123!",
+        },
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == (
+        "O link de recuperação é inválido "
+        "ou expirou."
     )

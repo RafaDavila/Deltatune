@@ -73,3 +73,32 @@ class TokenResponse(BaseModel):
         default="bearer",
         serialization_alias="tokenType",
     )
+
+class ForgotPasswordRequest(BaseModel):
+    model_config = ConfigDict(
+        str_strip_whitespace=True,
+    )
+
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    model_config = ConfigDict(
+        populate_by_name=True,
+        str_strip_whitespace=True,
+    )
+
+    token: str = Field(
+        min_length=40,
+        max_length=200,
+    )
+
+    new_password: str = Field(
+        alias="newPassword",
+        min_length=8,
+        max_length=128,
+    )
+
+
+class PasswordResetMessageResponse(BaseModel):
+    message: str
