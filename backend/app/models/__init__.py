@@ -6,6 +6,9 @@ from app.models.infinite_game import (
     InfiniteRunModel,
 )
 from app.models.user import UserModel
+from app.models.password_reset_token import (
+    PasswordResetTokenModel,
+)
 
 __all__ = [
     "UserModel",
@@ -16,4 +19,5 @@ __all__ = [
     "GameSessionModel",
     "SongModel",
     "SongAliasModel",
+    "PasswordResetTokenModel",
 ]
