@@ -4,7 +4,7 @@ import deltatuneLogo from "../assets/deltatune-logo.png";
 import SiteFooter from "../components/SiteFooter";
 import TutorialModal from "../components/TutorialModal";
 import ResultModal from "../components/ResultModal";
-import { getDailyAudioUrl, getSongs, resumeDailyChallenge, skipDailyGuess, startDailyChallenge, submitDailyGuess, type DailyChallengeResponse, } from "../services/deltatuneApi";
+import { getDailyAudioUrl, getSongs, resumeDailyChallenge, skipDailyGuess, startDailyChallenge, submitDailyGuess, type DailyChallengeResponse, getDailyStreakStats, type DailyStreakResponse } from "../services/deltatuneApi";
 import LivesDisplay from "../components/LivesDisplay";
 import type { AttemptResult } from "../types/game";
 import AttemptList from "../components/AttemptList";
@@ -53,8 +53,12 @@ function formatCountdown(
 
 function MusicGamePage() {
 
+  const [dailyStreak, setDailyStreak] =
+    useState<DailyStreakResponse | null>(null);
+
   const {
     user,
+    isAuthenticated,
     isLoading: isAuthLoading,
   } = useAuth();
 
@@ -198,6 +202,44 @@ function MusicGamePage() {
   }, [gameFinished]);
 
   useEffect(() => {
+    if (
+      !gameFinished ||
+      !hasWon ||
+      !isAuthenticated
+    ) {
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadDailyStreak() {
+      try {
+        const streak = await getDailyStreakStats();
+
+        if (!cancelled) {
+          setDailyStreak(streak);
+        }
+      } catch (error) {
+        console.error(
+          "Erro ao carregar sequências:",
+          error,
+        );
+      }
+    }
+
+    void loadDailyStreak();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    gameFinished,
+    hasWon,
+    isAuthenticated,
+    user?.id,
+  ]);
+
+  useEffect(() => {
     const intervalid = window.setInterval(() => {
       setCurrentTime(Date.now());
     }, 1000);
@@ -253,84 +295,84 @@ function MusicGamePage() {
       setIsProgressLoaded(false);
 
       try {
-          const savedSessionId = localStorage.getItem(
-            gameSessionStorageKey,
-          );
+        const savedSessionId = localStorage.getItem(
+          gameSessionStorageKey,
+        );
 
-          let loadedGame;
+        let loadedGame;
 
-          if (savedSessionId) {
-            try {
-              const resumedGame =
-                await resumeDailyChallenge(
-                  savedSessionId,
-                );
-
-              loadedGame = {
-                challenge: resumedGame,
-                attempts: resumedGame.attempts,
-                songTitle: resumedGame.songTitle,
-              };
-            } catch {
-              localStorage.removeItem(
-                gameSessionStorageKey,
+        if (savedSessionId) {
+          try {
+            const resumedGame =
+              await resumeDailyChallenge(
+                savedSessionId,
               );
 
-              loadedGame =
-                await createNewSession();
-            }
-          } else {
+            loadedGame = {
+              challenge: resumedGame,
+              attempts: resumedGame.attempts,
+              songTitle: resumedGame.songTitle,
+            };
+          } catch {
+            localStorage.removeItem(
+              gameSessionStorageKey,
+            );
+
             loadedGame =
               await createNewSession();
           }
+        } else {
+          loadedGame =
+            await createNewSession();
+        }
 
-          if (cancelled) {
-            return;
-          }
+        if (cancelled) {
+          return;
+        }
 
-          setDailyChallenge(loadedGame.challenge);
-          setSessionId(
-            loadedGame.challenge.sessionId,
-          );
-          setAttemptResults(loadedGame.attempts);
-          setRevealedSongTitle(
-            loadedGame.songTitle,
-          );
-          setChallengeError(null);
-          setIsProgressLoaded(true);
-        } catch (error) {
-          if (cancelled) {
-            return;
-          }
+        setDailyChallenge(loadedGame.challenge);
+        setSessionId(
+          loadedGame.challenge.sessionId,
+        );
+        setAttemptResults(loadedGame.attempts);
+        setRevealedSongTitle(
+          loadedGame.songTitle,
+        );
+        setChallengeError(null);
+        setIsProgressLoaded(true);
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
 
-          console.error(
-            "Erro ao carregar partida:",
-            error,
-          );
+        console.error(
+          "Erro ao carregar partida:",
+          error,
+        );
 
-          setDailyChallenge(null);
-          setSessionId(null);
-          setAttemptResults([]);
-          setRevealedSongTitle(null);
-          setChallengeError(
-            "Não foi possível carregar a partida.",
-          );
-        } finally {
-          if (!cancelled) {
-            setIsChallengeLoading(false);
-          }
+        setDailyChallenge(null);
+        setSessionId(null);
+        setAttemptResults([]);
+        setRevealedSongTitle(null);
+        setChallengeError(
+          "Não foi possível carregar a partida.",
+        );
+      } finally {
+        if (!cancelled) {
+          setIsChallengeLoading(false);
         }
       }
+    }
 
-      void loadDailyChallenge();
+    void loadDailyChallenge();
 
-      return () => {
-        cancelled = true;
-      };
-    }, [
-      gameSessionStorageKey,
-      isAuthLoading,
-    ]);
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    gameSessionStorageKey,
+    isAuthLoading,
+  ]);
 
 
   async function handleSkip() {
@@ -549,6 +591,16 @@ function MusicGamePage() {
           attemptsUsed={attemptResults.length}
           remainingLives={remainingLives}
           isPlaying={isPlaying}
+          currentStreak={
+            isAuthenticated
+              ? dailyStreak?.currentStreak
+              : undefined
+          }
+          bestStreak={
+            isAuthenticated
+              ? dailyStreak?.bestStreak
+              : undefined
+          }
           onReplay={handlePlay}
           onClose={() => setIsResultOpen(false)}
         />

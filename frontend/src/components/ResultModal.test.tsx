@@ -11,6 +11,11 @@ import {
 
 import ResultModal from "./ResultModal";
 
+expect(
+  screen.queryByLabelText(
+    "Sequências do desafio diário",
+  ),
+).not.toBeInTheDocument();
 test(
   "inicia a próxima rodada no modo infinito",
   async () => {
@@ -85,5 +90,35 @@ test(
     );
 
     expect(handleClose).toHaveBeenCalledOnce();
+  },
+);
+
+test(
+  "exibe as sequências na vitória diária",
+  () => {
+    render(
+      <ResultModal
+        hasWon
+        songTitle="Hammer of Justice"
+        attemptsUsed={1}
+        remainingLives={6}
+        isPlaying={false}
+        currentStreak={3}
+        bestStreak={8}
+        onReplay={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    const streaks = screen.getByLabelText(
+      "Sequências do desafio diário",
+    );
+
+    expect(streaks).toHaveTextContent(
+      "Sequência atual3",
+    );
+    expect(streaks).toHaveTextContent(
+      "Melhor sequência8",
+    );
   },
 );

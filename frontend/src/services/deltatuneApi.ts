@@ -66,6 +66,11 @@ export type DailyWeekDayResponse = {
   sessionId: string | null;
 };
 
+export type DailyStreakResponse = {
+  currentStreak: number;
+  bestStreak: number;
+};
+
 export type DailyWeekResponse = {
   days: DailyWeekDayResponse[];
 };
@@ -348,6 +353,24 @@ export function getDailyAudioUrl(
     `${API_BASE_URL}/challenges/daily/audio` +
     `?challenge=${encodeURIComponent(challengeId)}`
   );
+}
+
+export async function getDailyStreakStats():
+  Promise<DailyStreakResponse> {
+  const response = await apiFetch(
+    "/challenges/daily/stats",
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      await readErrorMessage(
+        response,
+        "Não foi possível carregar as sequências.",
+      ),
+    );
+  }
+
+  return response.json();
 }
 
 export async function getDailyWeek():
