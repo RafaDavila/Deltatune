@@ -587,3 +587,66 @@ export function getInfiniteAudioUrl(
     `${encodeURIComponent(roundId)}/audio`
   );
 }
+
+export type ResetPasswordInput = {
+  token: string;
+  newPassword: string;
+};
+
+export type ForgotPasswordInput = {
+  email: string;
+};
+
+export type PasswordResetMessageResponse = {
+  message: string;
+};
+
+export async function requestPasswordReset(
+  input: ForgotPasswordInput,
+): Promise<PasswordResetMessageResponse> {
+  const response = await apiFetch(
+    "/auth/forgot-password",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(input),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      await readErrorMessage(
+        response,
+        "Não foi possível solicitar a recuperação.",
+      ),
+    );
+  }
+
+  return response.json();
+}
+
+export async function resetPassword(
+  input: ResetPasswordInput,
+): Promise<PasswordResetMessageResponse> {
+  const response = await apiFetch(
+    "/auth/reset-password",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(input),
+    },
+  );
+  if (!response.ok) {
+    throw new Error(
+      await readErrorMessage(
+        response,
+        "Não foi possível redefinir a senha.",
+      ),
+    );
+  }
+  return response.json();
+}
