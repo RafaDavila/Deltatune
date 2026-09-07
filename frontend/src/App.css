@@ -213,6 +213,78 @@
   font-weight: 700;
 }
 
+.reset-password {
+  display: grid;
+  align-items: start;
+  justify-items: center;
+  padding: clamp(32px, 8vh, 80px) 20px;
+}
+
+.reset-password__panel {
+  width: min(520px, 100%);
+  min-width: 0;
+  padding: clamp(22px, 5vw, 38px);
+  color: #ffffff;
+  background:
+    radial-gradient(circle at top, #24102f 0%, #09090f 55%);
+  border: 3px solid #ffffff;
+  box-shadow: 8px 8px 0 #641079;
+}
+
+.reset-password__panel h1 {
+  margin: 0 0 28px;
+  font-size: clamp(1.2rem, 4vw, 1.7rem);
+  text-align: center;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+
+.reset-password__panel p {
+  margin: 0;
+  line-height: 1.6;
+}
+
+.reset-password__back {
+  display: inline-block;
+  margin-top: 28px;
+  font-size: 0.8rem;
+  line-height: 1.6;
+}
+
+.auth-form__success {
+  margin: 0;
+  color: #58e879;
+  line-height: 1.5;
+}
+
+.auth-form__link {
+  justify-self: start;
+  padding: 4px 0;
+  color: #cfcfcf;
+  background: transparent;
+  border: 0;
+  font: inherit;
+  font-size: 0.85rem;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  cursor: pointer;
+}
+
+.auth-form__link:hover {
+  color: #ff3158;
+}
+
+.auth-form__link:focus-visible,
+.reset-password__back:focus-visible {
+  outline: 3px solid #ff3158;
+  outline-offset: 4px;
+}
+
+.reset-password__panel .auth-form__field input {
+  min-width: 0;
+}
+
 @media (max-width: 760px) {
   .home__account {
     margin-bottom: 16px;
@@ -806,7 +878,7 @@
 }
 
 .auth-form__submit:disabled {
-  cursor: wait;
+  cursor: not-allowed;
   opacity: 0.6;
 }
 
