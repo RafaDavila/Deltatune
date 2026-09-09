@@ -15,6 +15,7 @@ JWT_ALGORITHM = "HS256"
 
 def create_access_token(
     subject: str,
+    token_version: int,
 ) -> str:
     issued_at = datetime.now(
         timezone.utc,
@@ -32,7 +33,9 @@ def create_access_token(
         "iat": issued_at,
         "exp": expires_at,
         "type": "access",
+        "token_version": token_version,
     }
+    
 
     return jwt.encode(
         payload,
@@ -42,12 +45,21 @@ def create_access_token(
 
 def decode_access_token(
     token: str,
-) -> str:
+) -> tuple[str, int]:
     try:
         payload = jwt.decode(
             token,
             settings.jwt_secret_key.get_secret_value(),
             algorithms=[JWT_ALGORITHM],
+            options={
+                "require": [
+                    "sub",
+                    "iat",
+                    "exp",
+                    "type",
+                    "token_version",
+                ],
+            },
         )
     except InvalidTokenError as error:
         raise ValueError(
@@ -56,13 +68,20 @@ def decode_access_token(
 
     subject = payload.get("sub")
     token_type = payload.get("type")
+    token_version = payload.get("token_version")
 
     if (
         not isinstance(subject, str)
         or token_type != "access"
+        or type(token_version) is not int
     ):
         raise ValueError(
             "Token inválido.",
         )
 
-    return subject
+    if token_version < 0:
+        raise ValueError(
+            "Token inválido.",
+        )
+
+    return subject, token_version

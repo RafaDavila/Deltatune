@@ -610,6 +610,31 @@ def test_reset_password_flow(
 
     reset_token = captured_token["value"]
 
+    login_before_reset = client.post(
+        "/auth/login",
+        json={
+            "email": "rafael@example.com",
+            "password": "SenhaAntiga123!",
+        },
+    )
+
+    assert login_before_reset.status_code == 200
+
+    old_access_token = (
+        login_before_reset.json()["accessToken"]
+    )
+
+    old_headers = {
+        "Authorization": f"Bearer {old_access_token}",
+    }
+
+    me_before_reset = client.get(
+        "/auth/me",
+        headers=old_headers,
+    )
+
+    assert me_before_reset.status_code == 200
+
     reset_response = client.post(
         "/auth/reset-password",
         json={
@@ -641,6 +666,28 @@ def test_reset_password_flow(
 
     assert old_login.status_code == 401
     assert new_login.status_code == 200
+
+    me_with_old_token = client.get(
+        "/auth/me",
+        headers=old_headers,
+    )
+
+    assert me_with_old_token.status_code == 401
+
+    new_access_token = (
+        new_login.json()["accessToken"]
+    )
+
+    me_with_new_token = client.get(
+        "/auth/me",
+        headers={
+            "Authorization": (
+                f"Bearer {new_access_token}"
+            ),
+        },
+    )
+
+    assert me_with_new_token.status_code == 200
 
     reused_response = client.post(
         "/auth/reset-password",

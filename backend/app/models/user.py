@@ -3,6 +3,7 @@ from uuid import UUID, uuid4
 from sqlalchemy import (
     Boolean,
     DateTime,
+    Integer,
     String,
     UniqueConstraint,
     func,
@@ -44,6 +45,13 @@ class UserModel(Base):
     password_hash:Mapped[str] = mapped_column(
         String(255),
         nullable=False,
+    )
+
+    token_version: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=0,
+        server_default="0",
     )
 
     is_active: Mapped[bool] = mapped_column(

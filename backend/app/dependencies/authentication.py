@@ -21,7 +21,6 @@ from app.services.tokens import (
     decode_access_token,
 )
 
-
 bearer_scheme = HTTPBearer(
     auto_error=False,
 )
@@ -40,10 +39,7 @@ BearerCredentials = Annotated[
 def create_authentication_error() -> HTTPException:
     return HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail=(
-            "Não foi possível validar "
-            "a autenticação."
-        ),
+        detail=("Não foi possível validar " "a autenticação."),
         headers={
             "WWW-Authenticate": "Bearer",
         },
@@ -58,7 +54,7 @@ def get_current_user(
         raise create_authentication_error()
 
     try:
-        subject = decode_access_token(
+        subject, token_version = decode_access_token(
             credentials.credentials,
         )
 
@@ -70,27 +66,15 @@ def get_current_user(
         db,
         user_id,
     )
-
-    if user is None or not user.is_active:
+    if user is None or not user.is_active or user.token_version != token_version:
         raise create_authentication_error()
 
     return user
 
-def get_optional_current_user(
-        credentials: BearerCredentials,
-        db: DatabaseSession,
-) -> UserModel | None:
-    if credentials is None:
-        return None
-
-    return get_current_user(
-        credentials,
-        db,
-    )
 
 def get_optional_current_user(
-        credentials: BearerCredentials,
-        db: DatabaseSession,
+    credentials: BearerCredentials,
+    db: DatabaseSession,
 ) -> UserModel | None:
     if credentials is None:
         return None

@@ -116,6 +116,17 @@ def reset_password_with_token(
         return False
 
     user.password_hash = new_password_hash
+
+    db.execute(
+        update(UserModel)
+        .where(
+            UserModel.id == user.id,
+        )
+        .values(
+            token_version=UserModel.token_version + 1,
+        )
+    )
+
     reset_token.used_at = current_time
 
     db.add(user)
