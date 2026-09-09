@@ -39,6 +39,7 @@ function HomePage() {
     user,
     isAuthenticated,
     isLoading,
+    sessionExpired,
     logout,
   } = useAuth();
   const [weekDays, setWeekDays] =
@@ -134,6 +135,14 @@ function HomePage() {
   return (
     <main className="home">
       <div className="home__account">
+        {sessionExpired && (
+          <p
+            className="auth-form__error"
+            role="status"
+          >
+            Sua sessão expirou. Entre novamente.
+          </p>
+        )}
         {isLoading ? (
           <span className="home__account-status">
             Carregando conta...

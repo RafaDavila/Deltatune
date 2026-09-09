@@ -24,6 +24,7 @@ import type {
 } from "../services/deltatuneApi";
 
 import {
+  AUTH_SESSION_EXPIRED_EVENT,
   clearAccessToken,
   getAccessToken,
   saveAccessToken,
@@ -42,11 +43,36 @@ export function AuthProvider({
   const [isLoading, setIsLoading] =
     useState(true);
 
+  const [sessionExpired, setSessionExpired] =
+    useState(false);
+
+  useEffect(() => {
+    function handleSessionExpired() {
+      setUser(null);
+      setIsLoading(false);
+      setSessionExpired(true);
+    }
+
+    window.addEventListener(
+      AUTH_SESSION_EXPIRED_EVENT,
+      handleSessionExpired,
+    );
+
+    return () => {
+      window.removeEventListener(
+        AUTH_SESSION_EXPIRED_EVENT,
+        handleSessionExpired,
+      );
+    };
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
 
     async function restoreAuthentication() {
-      if (getAccessToken() === null) {
+      const restoringToken = getAccessToken();
+
+      if (restoringToken === null) {
         if (!cancelled) {
           setIsLoading(false);
         }
@@ -58,11 +84,13 @@ export function AuthProvider({
         const currentUser =
           await getCurrentUser();
 
-        if (!cancelled) {
+        if (
+          !cancelled &&
+          getAccessToken() === restoringToken
+        ) {
           setUser(currentUser);
+          setSessionExpired(false);
         }
-      } catch {
-        clearAccessToken();
       } finally {
         if (!cancelled) {
           setIsLoading(false);
@@ -70,7 +98,10 @@ export function AuthProvider({
       }
     }
 
-    void restoreAuthentication();
+        void restoreAuthentication().catch(() => {
+      // A sessão rejeitada com 401 já é tratada em apiFetch.
+      // Uma falha de rede preserva o token para tentar depois.
+    });
 
     return () => {
       cancelled = true;
@@ -113,6 +144,7 @@ export function AuthProvider({
   function logout(): void {
     clearAccessToken();
     setUser(null);
+    setSessionExpired(false);
   }
 
   return (
@@ -124,6 +156,7 @@ export function AuthProvider({
         login,
         register,
         logout,
+        sessionExpired,
       }}
     >
       {children}

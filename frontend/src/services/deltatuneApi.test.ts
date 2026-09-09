@@ -9,11 +9,13 @@ import {
 
 import {
   clearAccessToken,
+  getAccessToken,
   saveAccessToken,
 } from "./authStorage";
 
 import {
   getCurrentUser,
+  loginUser,
 } from "./deltatuneApi";
 
 describe("deltatuneApi authentication", () => {
@@ -69,5 +71,62 @@ describe("deltatuneApi authentication", () => {
     ).toBe("Bearer token-de-teste");
 
     expect(result).toEqual(user);
+  });
+
+  it("clears the session when an authenticated request returns 401", async () => {
+    saveAccessToken("token-expirado");
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            detail: "Autenticação inválida.",
+          }),
+          {
+            status: 401,
+            headers: {
+              "Content-Type": "application/json",
+            },
+          },
+        ),
+      ),
+    );
+
+    await expect(
+      getCurrentUser(),
+    ).rejects.toThrow("Autenticação inválida.");
+
+    expect(getAccessToken()).toBeNull();
+  });
+
+  it("preserves the session when login returns 401", async () => {
+    saveAccessToken("token-atual");
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            detail: "E-mail ou senha inválidos.",
+          }),
+          {
+            status: 401,
+            headers: {
+              "Content-Type": "application/json",
+            },
+          },
+        ),
+      ),
+    );
+
+    await expect(
+      loginUser({
+        email: "rafael@example.com",
+        password: "senha-incorreta",
+      }),
+    ).rejects.toThrow("E-mail ou senha inválidos.");
+
+    expect(getAccessToken()).toBe("token-atual");
   });
 });

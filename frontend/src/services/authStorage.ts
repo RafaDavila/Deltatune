@@ -21,3 +21,20 @@ export function clearAccessToken(): void {
     ACCESS_TOKEN_STORAGE_KEY,
   );
 }
+
+export const AUTH_SESSION_EXPIRED_EVENT =
+  "deltatune:session-expired";
+
+export function expireAccessToken(
+  rejectedToken: string,
+): void {
+  if (getAccessToken() !== rejectedToken) {
+    return;
+  }
+
+  clearAccessToken();
+
+  window.dispatchEvent(
+    new Event(AUTH_SESSION_EXPIRED_EVENT),
+  );
+}

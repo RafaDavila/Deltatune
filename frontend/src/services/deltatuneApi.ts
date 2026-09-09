@@ -25,7 +25,10 @@ export type SkipResponse = {
   songTitle: string | null;
 };
 
-import { getAccessToken } from "./authStorage";
+import {
+  expireAccessToken,
+  getAccessToken,
+} from "./authStorage";
 
 export type UserResponse = {
   id: string;
@@ -97,13 +100,30 @@ async function apiFetch(
     );
   }
 
-  return fetch(
+  const response = await fetch(
     `${API_BASE_URL}${path}`,
     {
       ...options,
       headers,
     },
   );
+
+  const isPublicAuthRequest = [
+    "/auth/login",
+    "/auth/register",
+    "/auth/forgot-password",
+    "/auth/reset-password",
+  ].includes(path);
+
+  if (
+    response.status === 401 &&
+    accessToken !== null &&
+    !isPublicAuthRequest
+  ) {
+    expireAccessToken(accessToken);
+  }
+
+  return response;
 }
 
 async function readErrorMessage(

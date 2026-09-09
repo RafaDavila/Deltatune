@@ -1,4 +1,5 @@
 import {
+  act,
   render,
   screen,
 } from "@testing-library/react";
@@ -20,6 +21,7 @@ import {
 } from "../services/deltatuneApi";
 
 import {
+  AUTH_SESSION_EXPIRED_EVENT,
   getAccessToken,
   saveAccessToken,
 } from "../services/authStorage";
@@ -33,7 +35,8 @@ vi.mock("../services/deltatuneApi", () => ({
   registerUser: vi.fn(),
 }));
 
-vi.mock("../services/authStorage", () => ({
+vi.mock("../services/authStorage", async (importOriginal) => ({
+  ...await importOriginal<typeof import("../services/authStorage")>(),
   clearAccessToken: vi.fn(),
   getAccessToken: vi.fn(),
   saveAccessToken: vi.fn(),
@@ -145,4 +148,100 @@ describe("AuthProvider", () => {
       "novo-token",
     );
   });
+
+    it("removes the user when the session expires", async () => {
+    vi.mocked(
+      getAccessToken,
+    ).mockReturnValue("token-salvo");
+
+    vi.mocked(
+      getCurrentUser,
+    ).mockResolvedValue(currentUser);
+
+    render(
+      <AuthProvider>
+        <AuthProbe />
+      </AuthProvider>,
+    );
+
+    expect(
+      await screen.findByText("Rafael"),
+    ).toBeInTheDocument();
+
+    vi.mocked(
+      getAccessToken,
+    ).mockReturnValue(null);
+
+    act(() => {
+      window.dispatchEvent(
+        new Event(AUTH_SESSION_EXPIRED_EVENT),
+      );
+    });
+
+    expect(
+      screen.getByText("Visitante"),
+    ).toBeInTheDocument();
+
+    expect(
+      screen.queryByText("Rafael"),
+    ).not.toBeInTheDocument();
+  });
+
+    it("ignores a restoration response after the session expires", async () => {
+    vi.mocked(
+      getAccessToken,
+    ).mockReturnValue("token-antigo");
+
+    let resolveCurrentUser!: (
+      user: typeof currentUser,
+    ) => void;
+
+    const pendingUser = new Promise<
+      typeof currentUser
+    >((resolve) => {
+      resolveCurrentUser = resolve;
+    });
+
+    vi.mocked(
+      getCurrentUser,
+    ).mockReturnValue(pendingUser);
+
+    render(
+      <AuthProvider>
+        <AuthProbe />
+      </AuthProvider>,
+    );
+
+    expect(
+      screen.getByText("Carregando"),
+    ).toBeInTheDocument();
+
+    vi.mocked(
+      getAccessToken,
+    ).mockReturnValue(null);
+
+    act(() => {
+      window.dispatchEvent(
+        new Event(AUTH_SESSION_EXPIRED_EVENT),
+      );
+    });
+
+    expect(
+      screen.getByText("Visitante"),
+    ).toBeInTheDocument();
+
+    await act(async () => {
+      resolveCurrentUser(currentUser);
+      await pendingUser;
+    });
+
+    expect(
+      screen.getByText("Visitante"),
+    ).toBeInTheDocument();
+
+    expect(
+      screen.queryByText("Rafael"),
+    ).not.toBeInTheDocument();
+  });
+
 });
