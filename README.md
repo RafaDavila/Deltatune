@@ -1,5 +1,7 @@
 # Deltatune
 
+[![Deltatune CI](https://github.com/RafaDavila/Deltatune/actions/workflows/ci.yml/badge.svg)](https://github.com/RafaDavila/Deltatune/actions/workflows/ci.yml)
+
 Deltatune é um jogo web de adivinhação musical inspirado no universo de **DELTARUNE**. A aplicação possui um desafio diário e um modo infinito, com sessões persistentes, progressão de trechos e validação segura das respostas pelo backend.
 
 O jogador começa ouvindo apenas **0,5 segundo** de uma faixa. Cada resposta incorreta ou tentativa pulada consome um coração e libera um trecho maior:
@@ -158,6 +160,7 @@ O frontend está hospedado na Vercel, a API FastAPI no Render e o PostgreSQL no 
 - Visual Studio Code;
 - Swagger UI;
 - Docker Desktop.
+- GitHub Actions.
 
 ## Arquitetura
 
@@ -248,40 +251,100 @@ O frontend mantém apenas identificadores de sessão e preferências no navegado
 
 ### Backend
 
-O backend possui **36 testes automatizados** cobrindo, entre outros cenários:
+Os testes utilizam Pytest e PostgreSQL e cobrem cenários como:
 
-- health check e catálogo;
-- criação e recuperação de sessões;
-- palpites corretos, incorretos e repetidos;
-- normalização das respostas;
-- tentativas puladas e encerramento das partidas;
-- validação de sessões e rodadas;
-- entrega segura dos áudios;
-- sequência do Modo Infinito;
-- criação da próxima rodada;
-- ciclos completos sem repetição de músicas.
+- catálogo, criação e recuperação de partidas;
+- validação de palpites, tentativas e encerramento de rodadas;
+- ciclos sem repetição e sequência do Modo Infinito;
+- histórico semanal e sequências do desafio diário;
+- cadastro, login e autenticação com JWT;
+- recuperação de senha e rejeição de tokens de recuperação reutilizados;
+- invalidação do JWT anterior após a redefinição da senha.
 
-Dentro de `backend`:
+Com o ambiente virtual ativo, instale as dependências dentro de `backend`:
 
 ```powershell
-python -m pytest -v --tb=short
+python -m pip install -r requirements-dev.txt
 ```
+
+Configure as variáveis exigidas por `app/config.py`, incluindo
+`TEST_DATABASE_URL`, e execute:
+
+```powershell
+python -m pytest
+```
+
+> Use um banco exclusivo para testes: a suíte apaga e recria as tabelas.
+> Nunca aponte `TEST_DATABASE_URL` para o banco de produção.
 
 ### Frontend
 
-O frontend possui **4 testes automatizados** cobrindo:
+Os testes utilizam Vitest e React Testing Library e cobrem cenários como:
 
-- comportamento do modal diário;
-- avanço e continuação no Modo Infinito;
-- recuperação de uma sessão infinita;
-- atualização e preservação do recorde.
+- modais de resultado e recuperação de partidas;
+- calendário semanal e recorde do Modo Infinito;
+- restauração da autenticação e login;
+- formulário de redefinição de senha;
+- remoção da sessão quando uma requisição autenticada recebe `401`;
+- preservação de uma sessão nova diante de uma resposta antiga;
+- atualização da interface após a expiração da sessão.
 
-Dentro de `frontend`:
+Dentro de `frontend`, instale as versões registradas no lockfile:
+
+```powershell
+npm ci
+```
+
+Execute as verificações:
 
 ```powershell
 npm test
 npm run lint
 npm run build
+```
+
+Para executar somente um arquivo de testes:
+
+```powershell
+npx vitest run src/services/authStorage.test.ts
+```
+
+## Integração contínua — CI
+
+O workflow está definido em [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+
+Ele executa automaticamente em:
+
+- pushes para `main`;
+- pull requests direcionados a `main`.
+
+Também pode ser iniciado manualmente pela aba Actions.
+
+O workflow possui dois jobs independentes:
+
+| Job | Verificações |
+| --- | --- |
+| Backend tests | Instala dependências, aplica migrations em um PostgreSQL temporário e executa Pytest |
+| Frontend checks | Executa `npm ci`, lint, testes e build |
+
+O ambiente utiliza Python 3.14, Node.js 24 e PostgreSQL 16.
+As configurações de autenticação e e-mail do CI usam valores fictícios,
+sem credenciais de produção.
+
+Durante o desenvolvimento, os testes relacionados à alteração podem
+ser executados localmente para obter retorno rápido. Após o push,
+o CI executa as verificações completas configuradas.
+
+[Consultar execuções do CI](https://github.com/RafaDavila/Deltatune/actions/workflows/ci.yml)
+
+### Integração com deploy
+
+O CI está implementado e validado. A configuração para exigir sua
+aprovação antes de integrar mudanças na `main` e publicar novas versões
+ainda está pendente.
+
+Portanto, a existência do workflow, por si só, não bloqueia merges
+nem deploys no Render ou na Vercel.
 ```
 
 ## Variáveis de ambiente
