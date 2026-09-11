@@ -337,14 +337,25 @@ o CI executa as verificações completas configuradas.
 
 [Consultar execuções do CI](https://github.com/RafaDavila/Deltatune/actions/workflows/ci.yml)
 
-### Integração com deploy
+### Proteção da main e integração com deploy
 
-O CI está implementado e validado. A configuração para exigir sua
-aprovação antes de integrar mudanças na `main` e publicar novas versões
-ainda está pendente.
+A branch `main` exige pull request e aprovação dos checks
+`Backend tests` e `Frontend checks` antes do merge.
+A branch de trabalho também deve estar atualizada com a `main`.
 
-Portanto, a existência do workflow, por si só, não bloqueia merges
-nem deploys no Render ou na Vercel.
+As regras se aplicam aos administradores, e force pushes e
+exclusão da branch permanecem desabilitados.
+
+O fluxo de contribuição é:
+
+1. Criar uma branch de trabalho.
+2. Implementar e validar a alteração.
+3. Enviar a branch e abrir um pull request para `main`.
+4. Aguardar a aprovação dos checks e revisar o diff.
+5. Fazer o merge.
+
+A configuração dos deploys no Render e na Vercel para aguardar
+diretamente o resultado do CI ainda está pendente.
 ```
 
 ## Variáveis de ambiente
