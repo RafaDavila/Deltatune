@@ -720,3 +720,139 @@ def test_reject_unknown_password_reset_token(
         "O link de recuperação é inválido "
         "ou expirou."
     )
+
+def test_limits_password_reset_emails(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    registration = client.post(
+        "/auth/register",
+        json={
+            "displayName": "Rafael",
+            "email": "limite@example.com",
+            "password": "SenhaSegura123!",
+        },
+    )
+
+    assert registration.status_code == 201
+
+    sent_emails: list[str] = []
+
+    def fake_send_password_reset_email(
+        recipient_email: str,
+        reset_token: str,
+    ) -> None:
+        sent_emails.append(recipient_email)
+
+    monkeypatch.setattr(
+        "app.routers.auth.send_password_reset_email",
+        fake_send_password_reset_email,
+    )
+
+    for _ in range(3):
+        response = client.post(
+            "/auth/forgot-password",
+            json={
+                "email": "limite@example.com",
+            },
+        )
+
+        assert response.status_code == 202
+
+    blocked_response = client.post(
+        "/auth/forgot-password",
+        json={
+            "email": "limite@example.com",
+        },
+    )
+
+    assert blocked_response.status_code == 429
+
+    retry_after = int(
+        blocked_response.headers["Retry-After"],
+    )
+
+    assert 1 <= retry_after <= 900
+
+    assert sent_emails == [
+        "limite@example.com",
+        "limite@example.com",
+        "limite@example.com",
+    ]
+
+@pytest.mark.parametrize(
+    "account_exists",
+    [True, False],
+)
+def test_reset_limit_uses_normalized_email(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+    account_exists: bool,
+) -> None:
+    if account_exists:
+        registration = client.post(
+            "/auth/register",
+            json={
+                "displayName": "Rafael",
+                "email": "normalizado@example.com",
+                "password": "SenhaSegura123!",
+            },
+        )
+
+        assert registration.status_code == 201
+
+    sent_emails: list[str] = []
+
+    def fake_send_password_reset_email(
+        recipient_email: str,
+        reset_token: str,
+    ) -> None:
+        sent_emails.append(recipient_email)
+
+    monkeypatch.setattr(
+        "app.routers.auth.send_password_reset_email",
+        fake_send_password_reset_email,
+    )
+
+    for email in [
+        "normalizado@example.com",
+        "NORMALIZADO@example.com",
+        "Normalizado@example.com",
+    ]:
+        response = client.post(
+            "/auth/forgot-password",
+            json={"email": email},
+        )
+
+        assert response.status_code == 202
+        assert response.json() == {
+            "message": (
+                "Se existir uma conta com este e-mail, "
+                "enviaremos as instruções de recuperação."
+            ),
+        }
+
+    blocked_response = client.post(
+        "/auth/forgot-password",
+        json={
+            "email": "NoRmAlIzAdO@example.com",
+        },
+    )
+
+    assert blocked_response.status_code == 429
+    assert blocked_response.json()["detail"] == (
+        "Muitas solicitações. "
+        "Aguarde e tente novamente."
+    )
+
+    assert 1 <= int(
+        blocked_response.headers["Retry-After"],
+    ) <= 900
+
+    expected_emails = (
+        ["normalizado@example.com"] * 3
+        if account_exists
+        else []
+    )
+
+    assert sent_emails == expected_emails

@@ -20,6 +20,10 @@ from app.services.password_reset_tokens import (
     hash_password_reset_token,
 )
 
+from app.services.rate_limits import (
+    enforce_rate_limit,
+)
+
 from typing import Annotated
 
 from fastapi import (
@@ -132,7 +136,7 @@ def login_user(
 ) -> TokenResponse:
     normalized_email = str(
         credentials.email,
-    ).casefold()
+    ).casefold()    
 
     user = get_user_by_email(
         db,
@@ -183,6 +187,14 @@ def forgot_password(
     normalized_email = str(
         request.email,
     ).casefold()
+
+    enforce_rate_limit(
+        db,
+        scope="forgot-password-email",
+        identifier=normalized_email,
+        limit=3,
+        window_seconds=15 * 60,
+    )
 
     user = get_user_by_email(
         db,
