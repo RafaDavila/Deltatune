@@ -27,6 +27,8 @@ class Settings(BaseSettings):
         "http://127.0.0.1:5173",
     ]
 
+    trust_cloudflare_client_ip: bool = False
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

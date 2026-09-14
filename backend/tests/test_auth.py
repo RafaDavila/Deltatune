@@ -856,3 +856,101 @@ def test_reset_limit_uses_normalized_email(
     )
 
     assert sent_emails == expected_emails
+
+def test_limits_registration_by_ip(
+    client: TestClient,
+) -> None:
+    for index in range(5):
+        response = client.post(
+            "/auth/register",
+            json={
+                "displayName": f"Usuario {index}",
+                "email": f"registro{index}@example.com",
+                "password": "SenhaSegura123!",
+            },
+        )
+
+        assert response.status_code == 201
+
+    blocked_response = client.post(
+        "/auth/register",
+        json={
+            "displayName": "Usuario Bloqueado",
+            "email": "registro-bloqueado@example.com",
+            "password": "SenhaSegura123!",
+        },
+    )
+
+    assert blocked_response.status_code == 429
+    assert blocked_response.json()["detail"] == (
+        "Muitas solicitações. "
+        "Aguarde e tente novamente."
+    )
+
+    assert 1 <= int(
+        blocked_response.headers["Retry-After"],
+    ) <= 3600
+
+
+def test_limits_login_by_ip(
+    client: TestClient,
+) -> None:
+    for index in range(20):
+        response = client.post(
+            "/auth/login",
+            json={
+                "email": f"inexistente{index}@example.com",
+                "password": "SenhaErrada123!",
+            },
+        )
+
+        assert response.status_code == 401
+
+    blocked_response = client.post(
+        "/auth/login",
+        json={
+            "email": "outro-inexistente@example.com",
+            "password": "SenhaErrada123!",
+        },
+    )
+
+    assert blocked_response.status_code == 429
+    assert blocked_response.json()["detail"] == (
+        "Muitas solicitações. "
+        "Aguarde e tente novamente."
+    )
+
+    assert 1 <= int(
+        blocked_response.headers["Retry-After"],
+    ) <= 900
+
+
+def test_limits_password_reset_by_ip(
+    client: TestClient,
+) -> None:
+    for index in range(10):
+        response = client.post(
+            "/auth/forgot-password",
+            json={
+                "email": f"recuperacao{index}@example.com",
+            },
+        )
+
+        assert response.status_code == 202
+
+    blocked_response = client.post(
+        "/auth/forgot-password",
+        json={
+            "email": "recuperacao-bloqueada@example.com",
+        },
+    )
+
+    assert blocked_response.status_code == 429
+    assert blocked_response.json()["detail"] == (
+        "Muitas solicitações. "
+        "Aguarde e tente novamente."
+    )
+
+    assert 1 <= int(
+        blocked_response.headers["Retry-After"],
+    ) <= 900

@@ -30,8 +30,10 @@ from fastapi import (
     APIRouter,
     Depends,
     HTTPException,
+    Request,
     status,
 )
+from app.services.client_ip import get_client_ip
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -84,8 +86,18 @@ PASSWORD_RESET_REQUEST_MESSAGE = (
 )
 def register_user(
     registration: RegisterUserRequest,
+    request: Request,
     db: DatabaseSession,
 ) -> UserResponse:
+    client_ip = get_client_ip(request)
+
+    enforce_rate_limit(
+        db,
+        scope="register-ip",
+        identifier=client_ip,
+        limit=5,
+        window_seconds=60 * 60,
+    )
     normalized_email = str(
         registration.email,
     ).casefold()
@@ -132,11 +144,30 @@ def register_user(
 )
 def login_user(
     credentials: LoginRequest,
+    request: Request,
     db: DatabaseSession,
 ) -> TokenResponse:
     normalized_email = str(
         credentials.email,
-    ).casefold()    
+    ).casefold() 
+
+    client_ip = get_client_ip(request)
+
+    enforce_rate_limit(
+        db,
+        scope="login-ip",
+        identifier=client_ip,
+        limit=20,
+        window_seconds=15 * 60,
+    )
+
+    enforce_rate_limit(
+        db,
+        scope="login-email",
+        identifier=normalized_email,
+        limit=10,
+        window_seconds=15 * 60,
+    )
 
     user = get_user_by_email(
         db,
@@ -182,11 +213,22 @@ def login_user(
 )
 def forgot_password(
     request: ForgotPasswordRequest,
+    http_request: Request,
     db: DatabaseSession,
 ) -> PasswordResetMessageResponse:
     normalized_email = str(
         request.email,
     ).casefold()
+
+    client_ip = get_client_ip(http_request)
+
+    enforce_rate_limit(
+        db,
+        scope="forgot-password-ip",
+        identifier=client_ip,
+        limit=10,
+        window_seconds=15 * 60,
+    )
 
     enforce_rate_limit(
         db,
