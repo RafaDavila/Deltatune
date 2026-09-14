@@ -45,7 +45,10 @@ def reset_database() -> Generator[None, None, None]:
 def client() -> Generator[TestClient, None, None]:
     app.dependency_overrides[get_db] = override_get_db
 
-    with TestClient(app) as test_client:
+    with TestClient(
+    app,
+    client=("127.0.0.1", 50000),
+    ) as test_client:
         yield test_client
 
     app.dependency_overrides.pop(get_db, None)
