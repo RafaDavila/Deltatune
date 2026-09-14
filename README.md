@@ -354,8 +354,13 @@ O fluxo de contribuição é:
 4. Aguardar a aprovação dos checks e revisar o diff.
 5. Fazer o merge.
 
-A configuração dos deploys no Render e na Vercel para aguardar
-diretamente o resultado do CI ainda está pendente.
+O backend no Render acompanha a branch `main` e está configurado
+com Auto-Deploy em `After CI Checks Pass`. Após uma alteração
+nessa branch, o deploy automático aguarda a aprovação dos checks
+do commit.
+
+A configuração do deploy de produção na Vercel em relação
+ao CI ainda precisa ser verificada.diretamente o resultado do CI ainda está pendente.
 ```
 
 ## Variáveis de ambiente
