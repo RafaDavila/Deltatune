@@ -9,6 +9,7 @@ from app.models.user import UserModel
 from app.models.password_reset_token import (
     PasswordResetTokenModel,
 )
+from app.models.rate_limit import RateLimitModel
 
 __all__ = [
     "UserModel",
@@ -20,4 +21,5 @@ __all__ = [
     "SongModel",
     "SongAliasModel",
     "PasswordResetTokenModel",
+    "RateLimitModel",
 ]
