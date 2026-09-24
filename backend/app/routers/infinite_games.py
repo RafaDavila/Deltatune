@@ -207,6 +207,7 @@ def read_infinite_round_audio(
         db,
         run_id,
         round_id,
+        current_user=current_user,
     )
 
     audio_key = game_round.song.audio_key
@@ -250,6 +251,7 @@ def submit_infinite_guess(
             db,
             guess.run_id,
             guess.round_id,
+            current_user=current_user,
         )
     )
 
@@ -396,6 +398,7 @@ def start_next_infinite_round(
             db,
             request.run_id,
             request.round_id,
+            current_user=current_user
         )
     )
 

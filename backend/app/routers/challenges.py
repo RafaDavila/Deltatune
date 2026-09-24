@@ -445,8 +445,7 @@ def skip_daily_guess(
     db: DatabaseSession,
     current_user: OptionalCurrentUser,
 ) -> SkipResponse:
-    daily_challenge = get_daily_challenge_service(db)
-    
+    daily_challenge = get_daily_challenge_service(db)    
     if skip.challenge_id != daily_challenge.id:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
