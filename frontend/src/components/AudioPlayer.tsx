@@ -95,6 +95,7 @@ function AudioPlayer({
         type="button"
         aria-label="Reproduzir trecho da música"
         onClick={onPlay}
+        disabled={!audioUrl || Boolean(challengeError)}
       >
         <img
           src={heartIcon}

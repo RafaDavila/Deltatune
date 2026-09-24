@@ -16,7 +16,7 @@ import SiteFooter from "../components/SiteFooter";
 import TutorialModal from "../components/TutorialModal";
 import useAudioClip from "../hooks/useAudioClip";
 import {
-  getInfiniteAudioUrl,
+
   getSongs,
   resumeInfiniteGame,
   skipInfiniteGuess,
@@ -27,6 +27,7 @@ import {
 } from "../services/deltatuneApi";
 import type { AttemptResult } from "../types/game";
 import { useAuth } from "../hooks/useAuth";
+import useInfiniteAudio from "../hooks/useInfiniteAudio";
 
 const DEFAULT_ATTEMPT_DURATIONS = [
   0.5,
@@ -167,18 +168,25 @@ function InfiniteGamePage() {
     ? maximumDuration
     : attemptDurations[currentAttempt];
 
-  const audioUrl = game
-    ? getInfiniteAudioUrl(
-      game.runId,
-      game.roundId,
-    )
-    : undefined;
-
   const isGameUnavailable =
     isGameLoading ||
     !isProgressLoaded ||
     !game ||
     Boolean(gameError);
+
+  const {
+    audioUrl,
+    audioError,
+  } = useInfiniteAudio({
+    runId: game?.runId,
+    roundId: game?.roundId,
+    accountKey: user?.id ?? "anonymous",
+    enabled: (
+      !isAuthLoading &&
+      !isGameUnavailable &&
+      !isAdvancing
+    ),
+  });
 
   const {
     audioRef,
@@ -190,7 +198,12 @@ function InfiniteGamePage() {
   } = useAudioClip({
     audioSource: audioUrl,
     clipDuration: unlockedDuration,
-    disabled: isGameUnavailable,
+    disabled: (
+      isAuthLoading ||
+      isGameUnavailable ||
+      isAdvancing ||
+      !audioUrl
+    ),
   });
 
   useEffect(() => {
@@ -631,7 +644,7 @@ function InfiniteGamePage() {
           gameFinished={gameFinished}
           isPlaying={isPlaying}
           volume={volume}
-          challengeError={gameError}
+          challengeError={gameError ?? audioError}
           onPlay={playAudio}
           onStop={stopAudio}
           onVolumeChange={setVolume}

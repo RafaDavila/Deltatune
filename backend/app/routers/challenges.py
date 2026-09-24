@@ -46,6 +46,10 @@ from app.dependencies.authentication import (
 )
 from app.models.user import UserModel
 
+from app.services.game_authorization import (
+    authorize_game_owner,
+)
+
 router = APIRouter(
     prefix="/challenges",
     tags=["Challenges"],
@@ -299,6 +303,8 @@ def start_daily_challenge(
 def resume_daily_challenge(
     session_id: str,
     db: DatabaseSession,
+    current_user: OptionalCurrentUser,
+
 ) -> ResumeDailyChallengeResponse:
     daily_challenge = get_daily_challenge_service(db)
 
@@ -308,6 +314,11 @@ def resume_daily_challenge(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Sessão de partida não encontrada.",
+        )
+
+    authorize_game_owner(
+            game_session.user_id,
+            current_user,
         )
 
     if game_session.challenge_id != daily_challenge.id:
@@ -344,9 +355,9 @@ def resume_daily_challenge(
 def submit_daily_guess(
     guess: GuessRequest,
     db: DatabaseSession,
+    current_user: OptionalCurrentUser,
 ) -> GuessResponse:
-    daily_challenge = get_daily_challenge_service(db)
-
+    daily_challenge = get_daily_challenge_service(db)    
     if guess.challenge_id != daily_challenge.id:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -362,6 +373,11 @@ def submit_daily_guess(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Sessão de partida não encontrada.",
+        )
+
+    authorize_game_owner(
+            game_session.user_id,
+            current_user,
         )
 
     if game_session.challenge_id != daily_challenge.id:
@@ -427,9 +443,10 @@ def submit_daily_guess(
 def skip_daily_guess(
     skip: SkipRequest,
     db: DatabaseSession,
+    current_user: OptionalCurrentUser,
 ) -> SkipResponse:
     daily_challenge = get_daily_challenge_service(db)
-
+    
     if skip.challenge_id != daily_challenge.id:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -445,6 +462,11 @@ def skip_daily_guess(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Sessão de partida não encontrada.",
+        )
+
+    authorize_game_owner(
+            game_session.user_id,
+            current_user,
         )
 
     if game_session.challenge_id != daily_challenge.id:

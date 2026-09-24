@@ -262,8 +262,8 @@ export async function submitDailyGuess(
   challengeId: string,
   answer: string,
 ): Promise<GuessResponse> {
-  const response = await fetch(
-    `${API_BASE_URL}/challenges/daily/guess`,
+  const response = await apiFetch(
+    "/challenges/daily/guess",
     {
       method: "POST",
       headers: {
@@ -305,8 +305,8 @@ export async function skipDailyGuess(
   sessionId: string,
   challengeId: string,
 ): Promise<SkipResponse> {
-  const response = await fetch(
-    `${API_BASE_URL}/challenges/daily/skip`,
+  const response = await apiFetch(
+    "/challenges/daily/skip",
     {
       method: "POST",
       headers: {
@@ -347,8 +347,8 @@ export type ResumeDailyChallengeResponse =
 export async function resumeDailyChallenge(
   sessionId: string,
 ): Promise<ResumeDailyChallengeResponse> {
-  const response = await fetch(
-    `${API_BASE_URL}/challenges/daily/session/${sessionId}`,
+  const response = await apiFetch(
+    `/challenges/daily/session/${encodeURIComponent(sessionId)}`,
   );
 
   if (!response.ok) {
@@ -474,7 +474,7 @@ export async function getInfiniteRecord():
 
 export async function startInfiniteGame():
   Promise<InfiniteGameResponse> {
-  const response = await fetch(
+  const response = await apiFetch(
     "/infinite/start",
     {
       method: "POST",
@@ -493,8 +493,8 @@ export async function startInfiniteGame():
 export async function resumeInfiniteGame(
   runId: string,
 ): Promise<ResumeInfiniteGameResponse> {
-  const response = await fetch(
-    `${API_BASE_URL}/infinite/` +
+  const response = await apiFetch(
+    `/infinite/` +
     encodeURIComponent(runId),
   );
 
@@ -512,8 +512,8 @@ export async function submitInfiniteGuess(
   roundId: string,
   answer: string,
 ): Promise<InfiniteGuessResponse> {
-  const response = await fetch(
-    `${API_BASE_URL}/infinite/guess`,
+  const response = await apiFetch(
+    "/infinite/guess",
     {
       method: "POST",
       headers: {
@@ -547,8 +547,8 @@ export async function skipInfiniteGuess(
   runId: string,
   roundId: string,
 ): Promise<InfiniteSkipResponse> {
-  const response = await fetch(
-    `${API_BASE_URL}/infinite/skip`,
+  const response = await apiFetch(
+    "/infinite/skip",
     {
       method: "POST",
       headers: {
@@ -574,8 +574,8 @@ export async function startNextInfiniteRound(
   runId: string,
   roundId: string,
 ): Promise<InfiniteGameResponse> {
-  const response = await fetch(
-    `${API_BASE_URL}/infinite/next`,
+  const response = await apiFetch(
+    "/infinite/next",
     {
       method: "POST",
       headers: {
@@ -606,6 +606,37 @@ export function getInfiniteAudioUrl(
     `${encodeURIComponent(runId)}/rounds/` +
     `${encodeURIComponent(roundId)}/audio`
   );
+}
+
+export async function getInfiniteAudioBlob(
+  runId: string,
+  roundId: string,
+  signal?: AbortSignal,
+): Promise<Blob> {
+  const path = (
+    `/infinite/${encodeURIComponent(runId)}` +
+    `/rounds/${encodeURIComponent(roundId)}/audio`
+  );
+
+  const response = await apiFetch(
+    path,
+    {
+      signal,
+      cache: "no-store",
+      redirect: "error",
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      await readErrorMessage(
+        response,
+        "Não foi possível carregar o áudio.",
+      ),
+    );
+  }
+
+  return response.blob();
 }
 
 export type ResetPasswordInput = {

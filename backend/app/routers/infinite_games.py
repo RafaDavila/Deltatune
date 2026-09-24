@@ -48,6 +48,10 @@ from app.services.audio_files import (
     find_audio_file,
 )
 
+from app.services.game_authorization import (
+    authorize_game_owner,
+)
+
 router = APIRouter(
     prefix="/infinite",
     tags=["Infinite Game"],
@@ -72,6 +76,7 @@ def get_validated_infinite_round(
     db: Session,
     run_id: UUID,
     round_id: UUID,
+    current_user: UserModel | None,
 ) -> tuple[
     InfiniteRunModel,
     InfiniteRoundModel,
@@ -89,6 +94,11 @@ def get_validated_infinite_round(
                 "não encontrada."
             ),
         )
+
+    authorize_game_owner(
+        game_run.user_id,
+        current_user,
+    )
 
     game_round = get_infinite_round(
         db,
@@ -133,6 +143,7 @@ ATTEMPT_DURATIONS = [
 def start_infinite_game(
     db: DatabaseSession,
     current_user: OptionalCurrentUser,
+
 ) -> StartInfiniteGameResponse:
     try:
         game_run, first_round = (
@@ -190,6 +201,7 @@ def read_infinite_round_audio(
     run_id: UUID,
     round_id: UUID,
     db: DatabaseSession,
+    current_user: OptionalCurrentUser,
 ) -> FileResponse:
     _, game_round = get_validated_infinite_round(
         db,
@@ -231,6 +243,7 @@ def read_infinite_round_audio(
 def submit_infinite_guess(
     guess: InfiniteGuessRequest,
     db: DatabaseSession,
+    current_user: OptionalCurrentUser,
 ) -> InfiniteGuessResponse:
     game_run, game_round = (
         get_validated_infinite_round(
@@ -321,12 +334,14 @@ def submit_infinite_guess(
 def skip_infinite_guess(
     skip: InfiniteSkipRequest,
     db: DatabaseSession,
+    current_user: OptionalCurrentUser,
 ) -> InfiniteSkipResponse:
     game_run, game_round = (
         get_validated_infinite_round(
             db,
             skip.run_id,
             skip.round_id,
+            current_user=current_user,
         )
     )
 
@@ -374,6 +389,7 @@ def skip_infinite_guess(
 def start_next_infinite_round(
     request: InfiniteNextRequest,
     db: DatabaseSession,
+    current_user: OptionalCurrentUser,
 ) -> StartInfiniteGameResponse:
     game_run, current_round = (
         get_validated_infinite_round(
@@ -442,6 +458,7 @@ def start_next_infinite_round(
 def resume_infinite_game(
     run_id: UUID,
     db: DatabaseSession,
+    current_user: OptionalCurrentUser,
 ) -> ResumeInfiniteGameResponse:
     game_run = get_infinite_run(
         db,
@@ -456,6 +473,11 @@ def resume_infinite_game(
                 "não encontrada."
             ),
         )
+
+    authorize_game_owner(
+        game_run.user_id,
+        current_user,
+    )
 
     game_round = get_latest_infinite_round(
         db,
