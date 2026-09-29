@@ -10,6 +10,8 @@ from uuid import UUID
 from app.models.infinite_game import InfiniteRoundModel
 
 
+@pytest.mark.parametrize("action", ["skip", "guess"])
+
 @pytest.mark.parametrize(
     "game_mode",
     ["daily", "infinite"],
@@ -21,12 +23,13 @@ from app.models.infinite_game import InfiniteRoundModel
         (True, 404),
     ],
 )
-def test_rejects_skip_by_non_owner(
+def test_rejects_game_access_by_non_owner(
     client: TestClient,
     db_session: Session,
     game_mode: str,
     authenticated_intruder: bool,
     expected_status: int,
+    action: str,
 ) -> None:
     password_hash = hash_password("SenhaTeste123!")
 
@@ -80,7 +83,7 @@ def test_rejects_skip_by_non_owner(
     started = start_response.json()
 
     if game_mode == "daily":
-        skip_payload = {
+        request_payload = {
             "challengeId": started["challengeId"],
             "sessionId": started["sessionId"],
         }
@@ -88,15 +91,17 @@ def test_rejects_skip_by_non_owner(
             f"{prefix}/session/{started['sessionId']}"
         )
     else:
-        skip_payload = {
+        request_payload = {
             "runId": started["runId"],
             "roundId": started["roundId"],
         }
         resume_path = f"{prefix}/{started['runId']}"
 
+    if action == "guess":
+        request_payload["answer"] = "Música que não existe"
     rejected_response = client.post(
-        f"{prefix}/skip",
-        json=skip_payload,
+        f"{prefix}/{action}",
+        json=request_payload,
         headers=intruder_headers,
     )
 
@@ -116,15 +121,49 @@ def test_rejects_skip_by_non_owner(
     )
 
     # O dono continua autorizado a jogar.
-    owner_skip_response = client.post(
-        f"{prefix}/skip",
-        json=skip_payload,
+    owner_response = client.post(
+        f"{prefix}/{action}",
+        json=request_payload,
         headers=owner_headers,
     )
 
-    assert owner_skip_response.status_code == 200
+        # Outra pessoa não pode ler o histórico do dono.
+    rejected_resume = client.get(
+        resume_path,
+        headers=intruder_headers,
+    )
+    assert rejected_resume.status_code == expected_status
+
+    # O histórico continua disponível para o dono.
+    owner_resume = client.get(
+        resume_path,
+        headers=owner_headers,
+    )
+    assert owner_resume.status_code == 200
+
+    expected_attempt = {
+        "answer": (
+            "Pulou"
+            if action == "skip"
+            else "Música que não existe"
+        ),
+        "status": (
+            "skipped"
+            if action == "skip"
+            else "wrong"
+        ),
+    }
+    assert owner_resume.json()["attempts"] == [
+        expected_attempt,
+    ]
     assert (
-        owner_skip_response.json()["remainingLives"]
+        owner_resume.json()["remainingLives"]
+        == started["remainingLives"] - 1
+    )
+
+    assert owner_response.status_code == 200
+    assert (
+        owner_response.json()["remainingLives"]
         == started["remainingLives"] - 1
     )
 
