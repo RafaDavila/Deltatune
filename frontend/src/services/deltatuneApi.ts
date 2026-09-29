@@ -30,6 +30,16 @@ import {
   getAccessToken,
 } from "./authStorage";
 
+import {
+  getGuestGameToken,
+  saveGuestGameToken,
+} from "./guestGameStorage";
+
+import type {
+  GuestGameMode,
+} from "./guestGameStorage";
+
+
 export type UserResponse = {
   id: string;
   displayName: string;
@@ -82,6 +92,20 @@ const API_BASE_URL = (
   import.meta.env.VITE_API_URL ??
   "http://127.0.0.1:8000"
 ).replace(/\/$/, "");
+
+function getGuestGameHeaders(
+  mode: GuestGameMode,
+  gameId: string,
+): Record<string, string> {
+  const token = getGuestGameToken(
+    mode,
+    gameId,
+  );
+
+  return token === null
+    ? {}
+    : { "X-Guest-Token": token };
+}
 
 async function apiFetch(
   path: string,
@@ -254,7 +278,18 @@ export async function startDailyChallenge():
     );
   }
 
-  return response.json();
+    const game: StartDailyChallengeResponse =
+    await response.json();
+
+  if (typeof game.guestToken === "string") {
+    saveGuestGameToken(
+      "daily",
+      game.sessionId,
+      game.guestToken,
+    );
+  }
+
+  return game;
 }
 
 export async function submitDailyGuess(
@@ -262,12 +297,16 @@ export async function submitDailyGuess(
   challengeId: string,
   answer: string,
 ): Promise<GuessResponse> {
-  const response = await fetch(
-    `${API_BASE_URL}/challenges/daily/guess`,
+  const response = await apiFetch(
+    "/challenges/daily/guess",
     {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        ...getGuestGameHeaders(
+          "daily",
+          sessionId,
+        ),
       },
       body: JSON.stringify({
         sessionId,
@@ -298,6 +337,7 @@ export type StartDailyChallengeResponse =
     sessionId: string,
     remainingLives: number,
     maximumAttempts: number,
+    guestToken?: string | null;
   };
 
 
@@ -305,12 +345,16 @@ export async function skipDailyGuess(
   sessionId: string,
   challengeId: string,
 ): Promise<SkipResponse> {
-  const response = await fetch(
-    `${API_BASE_URL}/challenges/daily/skip`,
+  const response = await apiFetch(
+    "/challenges/daily/skip",
     {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        ...getGuestGameHeaders(
+          "daily",
+          sessionId,
+        ),
       },
       body: JSON.stringify({
         sessionId,
@@ -347,8 +391,14 @@ export type ResumeDailyChallengeResponse =
 export async function resumeDailyChallenge(
   sessionId: string,
 ): Promise<ResumeDailyChallengeResponse> {
-  const response = await fetch(
-    `${API_BASE_URL}/challenges/daily/session/${sessionId}`,
+    const response = await apiFetch(
+    `/challenges/daily/session/${encodeURIComponent(sessionId)}`,
+    {
+      headers: getGuestGameHeaders(
+        "daily",
+        sessionId,
+      ),
+    },
   );
 
   if (!response.ok) {
@@ -419,6 +469,7 @@ export type InfiniteGameResponse = {
   remainingLives: number;
   maximumAttempts: number;
   currentStreak: number;
+  guestToken?: string | null;
 };
 
 export type InfiniteRoundResult = {
@@ -474,7 +525,7 @@ export async function getInfiniteRecord():
 
 export async function startInfiniteGame():
   Promise<InfiniteGameResponse> {
-  const response = await fetch(
+  const response = await apiFetch(
     "/infinite/start",
     {
       method: "POST",
@@ -487,15 +538,31 @@ export async function startInfiniteGame():
     );
   }
 
-  return response.json();
+    const game: InfiniteGameResponse =
+    await response.json();
+
+  if (typeof game.guestToken === "string") {
+    saveGuestGameToken(
+      "infinite",
+      game.runId,
+      game.guestToken,
+    );
+  }
+
+  return game;
 }
 
 export async function resumeInfiniteGame(
   runId: string,
 ): Promise<ResumeInfiniteGameResponse> {
-  const response = await fetch(
-    `${API_BASE_URL}/infinite/` +
-    encodeURIComponent(runId),
+    const response = await apiFetch(
+    `/infinite/${encodeURIComponent(runId)}`,
+    {
+      headers: getGuestGameHeaders(
+        "infinite",
+        runId,
+      ),
+    },
   );
 
   if (!response.ok) {
@@ -512,12 +579,16 @@ export async function submitInfiniteGuess(
   roundId: string,
   answer: string,
 ): Promise<InfiniteGuessResponse> {
-  const response = await fetch(
-    `${API_BASE_URL}/infinite/guess`,
+  const response = await apiFetch(
+    "/infinite/guess",
     {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        ...getGuestGameHeaders(
+          "infinite",
+          runId,
+        ),
       },
       body: JSON.stringify({
         runId,
@@ -547,12 +618,16 @@ export async function skipInfiniteGuess(
   runId: string,
   roundId: string,
 ): Promise<InfiniteSkipResponse> {
-  const response = await fetch(
-    `${API_BASE_URL}/infinite/skip`,
+  const response = await apiFetch(
+    "/infinite/skip",
     {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        ...getGuestGameHeaders(
+          "infinite",
+          runId,
+        ),
       },
       body: JSON.stringify({
         runId,
@@ -574,12 +649,16 @@ export async function startNextInfiniteRound(
   runId: string,
   roundId: string,
 ): Promise<InfiniteGameResponse> {
-  const response = await fetch(
-    `${API_BASE_URL}/infinite/next`,
+  const response = await apiFetch(
+    "/infinite/next",
     {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        ...getGuestGameHeaders(
+          "infinite",
+          runId,
+        ),
       },
       body: JSON.stringify({
         runId,
@@ -606,6 +685,41 @@ export function getInfiniteAudioUrl(
     `${encodeURIComponent(runId)}/rounds/` +
     `${encodeURIComponent(roundId)}/audio`
   );
+}
+
+export async function getInfiniteAudioBlob(
+  runId: string,
+  roundId: string,
+  signal?: AbortSignal,
+): Promise<Blob> {
+  const path = (
+    `/infinite/${encodeURIComponent(runId)}` +
+    `/rounds/${encodeURIComponent(roundId)}/audio`
+  );
+
+  const response = await apiFetch(
+    path,
+    {
+      headers: getGuestGameHeaders(
+        "infinite",
+        runId,
+      ),
+      signal,
+      cache: "no-store",
+      redirect: "error",
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      await readErrorMessage(
+        response,
+        "Não foi possível carregar o áudio.",
+      ),
+    );
+  }
+
+  return response.blob();
 }
 
 export type ResetPasswordInput = {

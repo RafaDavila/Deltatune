@@ -166,7 +166,7 @@ def test_correct_daily_guess(
     client: TestClient,
     db_session: Session,
 ) -> None:
-    session_id, challenge_id = start_session(
+    session_id, challenge_id, headers = start_session(
         client,
     )
 
@@ -174,6 +174,7 @@ def test_correct_daily_guess(
 
     guess_response = client.post(
         "/challenges/daily/guess",
+        headers=headers,
         json={
             "sessionId": session_id,
             "challengeId": challenge_id,
@@ -197,6 +198,7 @@ def test_correct_daily_guess(
 
     resume_response = client.get(
         f"/challenges/daily/session/{session_id}",
+        headers=headers,
     )
 
     resume_data = resume_response.json()
@@ -212,6 +214,7 @@ def test_correct_daily_guess(
 
     second_guess_response = client.post(
         "/challenges/daily/guess",
+        headers=headers,
         json={
             "sessionId": session_id,
             "challengeId": challenge_id,
@@ -227,7 +230,7 @@ def test_correct_daily_guess(
 def test_finish_game_after_six_skips(
         client: TestClient,
 ) -> None:
-    session_id, challenge_id = start_session(
+    session_id, challenge_id, headers = start_session(
         client,
     )
 
@@ -236,6 +239,7 @@ def test_finish_game_after_six_skips(
     for attempt_index in range(6):
         final_response = client.post(
             "/challenges/daily/skip",
+            headers=headers,
             json={
                 "sessionId": session_id,
                 "challengeId": challenge_id,
@@ -259,6 +263,7 @@ def test_finish_game_after_six_skips(
 
     seventh_skip_response = client.post(
         "/challenges/daily/skip",
+        headers=headers,
         json={
             "sessionId": session_id,
             "challengeId": challenge_id,
@@ -283,27 +288,33 @@ def test_resume_nonexistent_session(
 
 def start_session(
     client: TestClient,
-) -> tuple[str, str]:
+) -> tuple[str, str, dict[str, str]]:
     response = client.post("/challenges/daily/start")
 
     assert response.status_code == 201
 
     response_data = response.json()
+    headers = {
+        "X-Guest-Token": response_data["guestToken"],
+    }
+
     return (
         response_data["sessionId"],
         response_data["challengeId"],
+        headers,
     )
 
 
 def test_skip_daily_challenge(
     client: TestClient,
 ) -> None:
-    session_id, challenge_id = start_session(
+    session_id, challenge_id, headers = start_session(
         client,
     )
 
     skip_response = client.post(
         "/challenges/daily/skip",
+        headers=headers,
         json={
             "sessionId": session_id,
             "challengeId": challenge_id,
@@ -321,6 +332,7 @@ def test_skip_daily_challenge(
 
     resume_response = client.get(
         f"/challenges/daily/session/{session_id}",
+        headers=headers,
     )
 
     resume_data = resume_response.json()
@@ -337,12 +349,13 @@ def test_skip_daily_challenge(
 def test_wrong_daily_guess(
     client: TestClient,
 ) -> None:
-    session_id, challenge_id = start_session(
+    session_id, challenge_id, headers = start_session(
         client,
     )
 
     guess_response = client.post(
         "/challenges/daily/guess",
+        headers=headers,
         json={
             "sessionId": session_id,
             "challengeId": challenge_id,
@@ -362,6 +375,7 @@ def test_wrong_daily_guess(
 
     resume_response = client.get(
         f"/challenges/daily/session/{session_id}",
+        headers=headers,
     )
 
     resume_data = resume_response.json()
@@ -397,10 +411,11 @@ def test_resume_new_daily_challenge(
         "/challenges/daily/start",
     )
 
-    session_id = start_response.json()["sessionId"]
+    session_id, _, headers = start_session(client)
 
     resume_response = client.get(
         f"/challenges/daily/session/{session_id}",
+        headers=headers,
     )
 
     assert resume_response.status_code == 200
@@ -418,7 +433,7 @@ def test_accept_normalized_correct_answer(
     client: TestClient,
     db_session: Session,
 ) -> None:
-    session_id, challenge_id = start_session(
+    session_id, challenge_id, headers = start_session(
         client,
     )
 
@@ -432,6 +447,7 @@ def test_accept_normalized_correct_answer(
 
     response = client.post(
         "/challenges/daily/guess",
+        headers=headers,
         json={
             "sessionId": session_id,
             "challengeId": challenge_id,
@@ -452,10 +468,11 @@ def test_accept_normalized_correct_answer(
 def test_reject_outdated_challenge(
     client: TestClient,
 ) -> None:
-    session_id, _ = start_session(client)
+    session_id, _, headers = start_session(client)
 
     response = client.post(
         "/challenges/daily/guess",
+        headers=headers,
         json={
             "sessionId": session_id,
             "challengeId": "outdated-challenge",
@@ -470,6 +487,7 @@ def test_reject_outdated_challenge(
 
     resume_response = client.get(
         f"/challenges/daily/session/{session_id}",
+        headers=headers,
     )
 
     resume_data = resume_response.json()
@@ -515,7 +533,7 @@ def test_daily_rotation_contains_every_song_once() -> None:
 def test_reject_repeated_wrong_guess(
     client: TestClient,
 ) -> None:
-    session_id, challenge_id = start_session(
+    session_id, challenge_id, headers = start_session(
         client,
     )
 
@@ -527,11 +545,13 @@ def test_reject_repeated_wrong_guess(
 
     first_response = client.post(
         "/challenges/daily/guess",
+        headers=headers,
         json=request_body,
     )
 
     repeated_response = client.post(
         "/challenges/daily/guess",
+        headers=headers,
         json={
             **request_body,
             "answer": (
@@ -549,6 +569,7 @@ def test_reject_repeated_wrong_guess(
 
     resume_response = client.get(
         f"/challenges/daily/session/{session_id}",
+        headers=headers,
     )
 
     resumed_game = resume_response.json()

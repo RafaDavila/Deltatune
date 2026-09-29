@@ -21,6 +21,7 @@ InfiniteAttemptStatus = Literal[
 def create_infinite_run(
     db: Session,
     user_id: UUID | None = None,
+    guest_token_hash: str | None = None,
 ) -> tuple[
     InfiniteRunModel,
     InfiniteRoundModel,
@@ -42,6 +43,7 @@ def create_infinite_run(
     game_run = InfiniteRunModel(
         current_streak=0,
         user_id=user_id,
+        guest_token_hash=guest_token_hash,
     )
 
     db.add(game_run)

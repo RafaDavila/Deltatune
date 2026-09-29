@@ -21,10 +21,12 @@ def create_game_session(
     db: Session,
     challenge_id: str,
     user_id: UUID | None = None,
+    guest_token_hash: str | None = None,
 ) -> GameSessionModel:
     game_session = GameSessionModel(
         challenge_id=challenge_id,
         user_id=user_id,
+        guest_token_hash=guest_token_hash,
     )
 
     db.add(game_session)

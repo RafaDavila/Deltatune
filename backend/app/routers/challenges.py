@@ -46,6 +46,16 @@ from app.dependencies.authentication import (
 )
 from app.models.user import UserModel
 
+from app.services.game_authorization import (
+    authorize_game_owner,
+)
+from app.services.guest_game_tokens import (
+    generate_guest_game_token,
+    hash_guest_game_token,
+)
+
+from app.dependencies.guest_game import GuestGameToken
+
 router = APIRouter(
     prefix="/challenges",
     tags=["Challenges"],
@@ -260,6 +270,11 @@ def start_daily_challenge(
     daily_challenge = get_daily_challenge_service(db)
 
     game_session = None
+    guest_token = (
+        generate_guest_game_token()
+        if current_user is None
+        else None
+    )
 
     if current_user is not None:
         game_session = (
@@ -279,6 +294,11 @@ def start_daily_challenge(
                 if current_user is not None
                 else None
             ),
+            guest_token_hash=(
+                hash_guest_game_token(guest_token)
+                if guest_token is not None
+                else None
+            ),
         )
 
     return StartDailyChallengeResponse(
@@ -289,6 +309,7 @@ def start_daily_challenge(
         session_id=str(game_session.id),
         remaining_lives=game_session.remaining_lives,
         maximum_attempts=MAX_ATTEMPTS,
+        guest_token=guest_token,
     )
 
 
@@ -299,6 +320,9 @@ def start_daily_challenge(
 def resume_daily_challenge(
     session_id: str,
     db: DatabaseSession,
+    current_user: OptionalCurrentUser,
+    guest_token: GuestGameToken = None,
+
 ) -> ResumeDailyChallengeResponse:
     daily_challenge = get_daily_challenge_service(db)
 
@@ -309,6 +333,13 @@ def resume_daily_challenge(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Sessão de partida não encontrada.",
         )
+
+    authorize_game_owner(
+        game_session.user_id,
+        current_user,
+        guest_token=guest_token,
+        guest_token_hash=game_session.guest_token_hash,
+    )
 
     if game_session.challenge_id != daily_challenge.id:
         raise HTTPException(
@@ -344,9 +375,10 @@ def resume_daily_challenge(
 def submit_daily_guess(
     guess: GuessRequest,
     db: DatabaseSession,
+    current_user: OptionalCurrentUser,
+    guest_token: GuestGameToken = None,
 ) -> GuessResponse:
-    daily_challenge = get_daily_challenge_service(db)
-
+    daily_challenge = get_daily_challenge_service(db)    
     if guess.challenge_id != daily_challenge.id:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -363,6 +395,13 @@ def submit_daily_guess(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Sessão de partida não encontrada.",
         )
+
+    authorize_game_owner(
+        game_session.user_id,
+        current_user,
+        guest_token=guest_token,
+        guest_token_hash=game_session.guest_token_hash,
+    )
 
     if game_session.challenge_id != daily_challenge.id:
         raise HTTPException(
@@ -427,9 +466,10 @@ def submit_daily_guess(
 def skip_daily_guess(
     skip: SkipRequest,
     db: DatabaseSession,
+    current_user: OptionalCurrentUser,
+    guest_token: GuestGameToken = None,
 ) -> SkipResponse:
-    daily_challenge = get_daily_challenge_service(db)
-
+    daily_challenge = get_daily_challenge_service(db)    
     if skip.challenge_id != daily_challenge.id:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -446,6 +486,13 @@ def skip_daily_guess(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Sessão de partida não encontrada.",
         )
+
+    authorize_game_owner(
+        game_session.user_id,
+        current_user,
+        guest_token=guest_token,
+        guest_token_hash=game_session.guest_token_hash,
+    )
 
     if game_session.challenge_id != daily_challenge.id:
         raise HTTPException(

@@ -43,6 +43,11 @@ class GameSessionModel(Base):
         index=True,
     )
 
+    guest_token_hash: Mapped[str | None] = mapped_column(
+        String(64),
+        nullable=True,
+    )
+
     challenge_id: Mapped[str] = mapped_column(
         String(50),
         nullable=False,

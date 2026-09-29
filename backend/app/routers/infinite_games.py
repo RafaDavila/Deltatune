@@ -48,6 +48,15 @@ from app.services.audio_files import (
     find_audio_file,
 )
 
+from app.services.game_authorization import (
+    authorize_game_owner,
+)
+from app.services.guest_game_tokens import (
+    generate_guest_game_token,
+    hash_guest_game_token,
+)
+from app.dependencies.guest_game import GuestGameToken
+
 router = APIRouter(
     prefix="/infinite",
     tags=["Infinite Game"],
@@ -72,6 +81,8 @@ def get_validated_infinite_round(
     db: Session,
     run_id: UUID,
     round_id: UUID,
+    current_user: UserModel | None,
+    guest_token: str | None,
 ) -> tuple[
     InfiniteRunModel,
     InfiniteRoundModel,
@@ -89,6 +100,13 @@ def get_validated_infinite_round(
                 "não encontrada."
             ),
         )
+
+    authorize_game_owner(
+        game_run.user_id,
+        current_user,
+        guest_token=guest_token,
+        guest_token_hash=game_run.guest_token_hash,
+    )
 
     game_round = get_infinite_round(
         db,
@@ -133,7 +151,13 @@ ATTEMPT_DURATIONS = [
 def start_infinite_game(
     db: DatabaseSession,
     current_user: OptionalCurrentUser,
+
 ) -> StartInfiniteGameResponse:
+    guest_token = (
+        generate_guest_game_token()
+        if current_user is None
+        else None
+    )
     try:
         game_run, first_round = (
             create_infinite_run(
@@ -141,6 +165,11 @@ def start_infinite_game(
                 user_id=(
                     current_user.id
                     if current_user is not None
+                    else None
+                ),
+                guest_token_hash=(
+                    hash_guest_game_token(guest_token)
+                    if guest_token is not None
                     else None
                 ),
             )
@@ -163,6 +192,7 @@ def start_infinite_game(
         ),
         maximum_attempts=MAX_ATTEMPTS,
         current_streak=game_run.current_streak,
+        guest_token=guest_token,
     )
 
 @router.get(
@@ -172,6 +202,7 @@ def start_infinite_game(
 def read_infinite_record(
     db: DatabaseSession,
     current_user: CurrentUser,
+    guest_token: GuestGameToken = None,
 ) -> InfiniteRecordResponse:
     best_streak = get_user_infinite_record(
         db,
@@ -190,11 +221,15 @@ def read_infinite_round_audio(
     run_id: UUID,
     round_id: UUID,
     db: DatabaseSession,
+    current_user: OptionalCurrentUser,
+    guest_token: GuestGameToken = None,
 ) -> FileResponse:
     _, game_round = get_validated_infinite_round(
         db,
         run_id,
         round_id,
+        current_user=current_user,
+        guest_token=guest_token,
     )
 
     audio_key = game_round.song.audio_key
@@ -231,12 +266,16 @@ def read_infinite_round_audio(
 def submit_infinite_guess(
     guess: InfiniteGuessRequest,
     db: DatabaseSession,
+    current_user: OptionalCurrentUser,
+    guest_token: GuestGameToken = None,
 ) -> InfiniteGuessResponse:
     game_run, game_round = (
         get_validated_infinite_round(
             db,
             guess.run_id,
             guess.round_id,
+            current_user=current_user,
+            guest_token=guest_token,
         )
     )
 
@@ -321,12 +360,16 @@ def submit_infinite_guess(
 def skip_infinite_guess(
     skip: InfiniteSkipRequest,
     db: DatabaseSession,
+    current_user: OptionalCurrentUser,
+    guest_token: GuestGameToken = None,
 ) -> InfiniteSkipResponse:
     game_run, game_round = (
         get_validated_infinite_round(
             db,
             skip.run_id,
             skip.round_id,
+            current_user=current_user,
+            guest_token=guest_token,
         )
     )
 
@@ -374,12 +417,16 @@ def skip_infinite_guess(
 def start_next_infinite_round(
     request: InfiniteNextRequest,
     db: DatabaseSession,
+    current_user: OptionalCurrentUser,
+    guest_token: GuestGameToken = None,
 ) -> StartInfiniteGameResponse:
     game_run, current_round = (
         get_validated_infinite_round(
             db,
             request.run_id,
             request.round_id,
+            current_user=current_user,
+            guest_token=guest_token,
         )
     )
 
@@ -442,6 +489,8 @@ def start_next_infinite_round(
 def resume_infinite_game(
     run_id: UUID,
     db: DatabaseSession,
+    current_user: OptionalCurrentUser,
+    guest_token: GuestGameToken = None,
 ) -> ResumeInfiniteGameResponse:
     game_run = get_infinite_run(
         db,
@@ -456,6 +505,13 @@ def resume_infinite_game(
                 "não encontrada."
             ),
         )
+
+    authorize_game_owner(
+        game_run.user_id,
+        current_user,
+        guest_token=guest_token,
+        guest_token_hash=game_run.guest_token_hash,
+    )
 
     game_round = get_latest_infinite_round(
         db,

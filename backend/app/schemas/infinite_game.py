@@ -32,6 +32,11 @@ class StartInfiniteGameResponse(BaseModel):
         serialization_alias="currentStreak",
     )
 
+    guest_token: str | None = Field(
+        default=None,
+        serialization_alias="guestToken",
+    )
+
 class InfiniteRoundRequest(BaseModel):
     model_config = ConfigDict(
         populate_by_name=True,
