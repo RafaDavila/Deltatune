@@ -43,6 +43,11 @@ class InfiniteRunModel(Base):
         index=True,
     )
 
+    guest_token_hash: Mapped[str | None] = mapped_column(
+        String(64),
+        nullable=True,
+    )
+
     current_streak: Mapped[int] = mapped_column(
         Integer,
         nullable=False,

@@ -302,3 +302,91 @@ def test_infinite_round_access_requires_owner(
     assert next_game["runId"] == game["runId"]
     assert next_game["roundId"] != game["roundId"]
     assert next_game["roundNumber"] == 2
+
+@pytest.mark.parametrize("game_mode", ["daily", "infinite"])
+def test_guest_game_requires_its_own_token(
+    client: TestClient,
+    game_mode: str,
+) -> None:
+    prefix = (
+        "/challenges/daily"
+        if game_mode == "daily"
+        else "/infinite"
+    )
+
+    first_start = client.post(f"{prefix}/start")
+    second_start = client.post(f"{prefix}/start")
+
+    assert first_start.status_code == 201
+    assert second_start.status_code == 201
+
+    first_game = first_start.json()
+    second_game = second_start.json()
+
+    assert isinstance(first_game["guestToken"], str)
+    assert len(first_game["guestToken"]) == 43
+    assert first_game["guestToken"] != second_game["guestToken"]
+
+    owner_headers = {
+        "X-Guest-Token": first_game["guestToken"],
+    }
+    other_headers = {
+        "X-Guest-Token": second_game["guestToken"],
+    }
+
+    if game_mode == "daily":
+        resume_path = (
+            f"{prefix}/session/{first_game['sessionId']}"
+        )
+        payload = {
+            "sessionId": first_game["sessionId"],
+            "challengeId": first_game["challengeId"],
+        }
+    else:
+        resume_path = f"{prefix}/{first_game['runId']}"
+        payload = {
+            "runId": first_game["runId"],
+            "roundId": first_game["roundId"],
+        }
+
+    for rejected_headers in ({}, other_headers):
+        rejected_resume = client.get(
+            resume_path,
+            headers=rejected_headers,
+        )
+        assert rejected_resume.status_code == 404
+
+        for action in ("skip", "guess"):
+            request_payload = dict(payload)
+
+            if action == "guess":
+                request_payload["answer"] = "Resposta incorreta"
+
+            rejected_attempt = client.post(
+                f"{prefix}/{action}",
+                json=request_payload,
+                headers=rejected_headers,
+            )
+            assert rejected_attempt.status_code == 404
+
+    owner_resume = client.get(
+        resume_path,
+        headers=owner_headers,
+    )
+    assert owner_resume.status_code == 200
+    assert owner_resume.json()["attempts"] == []
+    assert (
+        owner_resume.json()["remainingLives"]
+        == first_game["remainingLives"]
+    )
+
+    owner_skip = client.post(
+        f"{prefix}/skip",
+        json=payload,
+        headers=owner_headers,
+    )
+    assert owner_skip.status_code == 200
+    assert (
+        owner_skip.json()["remainingLives"]
+        == first_game["remainingLives"] - 1
+    )

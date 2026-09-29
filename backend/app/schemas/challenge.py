@@ -2,6 +2,7 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from typing import Literal
 
+
 class DailyChallengeResponse(BaseModel):
     challenge_id: str = Field(serialization_alias="challengeId")
     challenge_number: int = Field(serialization_alias="challengeNumber")
@@ -75,6 +76,10 @@ class StartDailyChallengeResponse(
     )
     maximum_attempts: int = Field(
         serialization_alias="maximumAttempts",
+    )
+    guest_token: str | None = Field(
+        default=None,
+        serialization_alias="guestToken",
     )
 
 

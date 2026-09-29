@@ -82,9 +82,14 @@ def test_read_infinite_round_audio(
 
     game = start_response.json()
 
+    headers = {
+        "X-Guest-Token": game["guestToken"],
+    }
+
     response = client.get(
         f"/infinite/{game['runId']}"
         f"/rounds/{game['roundId']}/audio",
+        headers=headers,
     )
 
     assert response.status_code == 200
@@ -103,6 +108,10 @@ def test_reject_round_from_another_run(
         "/infinite/start",
     ).json()
 
+    headers = {
+        "X-Guest-Token": first_game["guestToken"],
+    }
+
     second_game = client.post(
         "/infinite/start",
     ).json()
@@ -111,6 +120,7 @@ def test_reject_round_from_another_run(
         f"/infinite/{first_game['runId']}"
         f"/rounds/{second_game['roundId']}"
         "/audio",
+        headers=headers,
     )
 
     assert response.status_code == 409
@@ -126,8 +136,13 @@ def test_wrong_infinite_guess(
         "/infinite/start",
     ).json()
 
+    headers = {
+        "X-Guest-Token": game["guestToken"],
+    }
+
     response = client.post(
         "/infinite/guess",
+        headers=headers,
         json={
             "runId": game["runId"],
             "roundId": game["roundId"],
@@ -157,6 +172,10 @@ def test_reject_repeated_infinite_guess(
         "/infinite/start",
     ).json()
 
+    headers = {
+        "X-Guest-Token": game["guestToken"],
+    }
+
     request_body = {
         "runId": game["runId"],
         "roundId": game["roundId"],
@@ -165,11 +184,13 @@ def test_reject_repeated_infinite_guess(
 
     first_response = client.post(
         "/infinite/guess",
+        headers=headers,
         json=request_body,
     )
 
     repeated_response = client.post(
         "/infinite/guess",
+        headers=headers,
         json={
             **request_body,
             "answer": "  resposta   repetida  ",
@@ -202,6 +223,10 @@ def test_correct_infinite_guess(
         "/infinite/start",
     ).json()
 
+    headers = {
+        "X-Guest-Token": game["guestToken"],
+    }
+
     game_round = db_session.get(
         InfiniteRoundModel,
         UUID(game["roundId"]),
@@ -213,6 +238,7 @@ def test_correct_infinite_guess(
 
     response = client.post(
         "/infinite/guess",
+        headers=headers,
         json={
             "runId": game["runId"],
             "roundId": game["roundId"],
@@ -239,11 +265,16 @@ def test_finish_infinite_round_after_six_skips(
         "/infinite/start",
     ).json()
 
+    headers = {
+        "X-Guest-Token": game["guestToken"],
+    }
+
     response = None
 
     for _ in range(6):
         response = client.post(
             "/infinite/skip",
+            headers=headers,
             json={
                 "runId": game["runId"],
                 "roundId": game["roundId"],
@@ -251,8 +282,6 @@ def test_finish_infinite_round_after_six_skips(
         )
 
         assert response.status_code == 200
-
-    assert response is not None
 
     result = response.json()
 
@@ -270,8 +299,13 @@ def test_reject_next_before_round_finishes(
         "/infinite/start",
     ).json()
 
+    headers = {
+        "X-Guest-Token": game["guestToken"],
+    }
+
     response = client.post(
         "/infinite/next",
+        headers=headers,
         json={
             "runId": game["runId"],
             "roundId": game["roundId"],
@@ -292,6 +326,10 @@ def test_create_next_infinite_round(
         "/infinite/start",
     ).json()
 
+    headers = {
+        "X-Guest-Token": first_game["guestToken"],
+    }
+
     first_round = db_session.get(
         InfiniteRoundModel,
         UUID(first_game["roundId"]),
@@ -301,6 +339,7 @@ def test_create_next_infinite_round(
 
     guess_response = client.post(
         "/infinite/guess",
+        headers=headers,
         json={
             "runId": first_game["runId"],
             "roundId": first_game["roundId"],
@@ -312,6 +351,7 @@ def test_create_next_infinite_round(
 
     response = client.post(
         "/infinite/next",
+        headers=headers,
         json={
             "runId": first_game["runId"],
             "roundId": first_game["roundId"],
@@ -358,6 +398,10 @@ def test_reject_next_from_old_round(
         "/infinite/start",
     ).json()
 
+    headers = {
+        "X-Guest-Token": game["guestToken"],
+    }
+
     game_round = db_session.get(
         InfiniteRoundModel,
         UUID(game["roundId"]),
@@ -367,6 +411,7 @@ def test_reject_next_from_old_round(
 
     client.post(
         "/infinite/guess",
+        headers=headers,
         json={
             "runId": game["runId"],
             "roundId": game["roundId"],
@@ -376,6 +421,7 @@ def test_reject_next_from_old_round(
 
     first_next_response = client.post(
         "/infinite/next",
+        headers=headers,
         json={
             "runId": game["runId"],
             "roundId": game["roundId"],
@@ -386,6 +432,7 @@ def test_reject_next_from_old_round(
 
     repeated_response = client.post(
         "/infinite/next",
+        headers=headers,
         json={
             "runId": game["runId"],
             "roundId": game["roundId"],
@@ -416,6 +463,10 @@ def test_infinite_cycle_uses_every_song_before_repeat(
         "/infinite/start",
     ).json()
 
+    headers = {
+        "X-Guest-Token": game["guestToken"],
+    }
+
     used_song_ids: set[int] = set()
 
     for expected_round_number in range(
@@ -444,6 +495,7 @@ def test_infinite_cycle_uses_every_song_before_repeat(
 
         guess_response = client.post(
             "/infinite/guess",
+            headers=headers,
             json={
                 "runId": game["runId"],
                 "roundId": game["roundId"],
@@ -463,6 +515,7 @@ def test_infinite_cycle_uses_every_song_before_repeat(
         ):
             next_response = client.post(
                 "/infinite/next",
+                headers=headers,
                 json={
                     "runId": game["runId"],
                     "roundId": game["roundId"],
@@ -479,6 +532,7 @@ def test_infinite_cycle_uses_every_song_before_repeat(
 
     second_cycle_response = client.post(
         "/infinite/next",
+        headers=headers,
         json={
             "runId": game["runId"],
             "roundId": game["roundId"],
@@ -518,8 +572,13 @@ def test_resume_active_infinite_game(
         "/infinite/start",
     ).json()
 
+    headers = {
+        "X-Guest-Token": game["guestToken"],
+    }
+
     guess_response = client.post(
         "/infinite/guess",
+        headers=headers,
         json={
             "runId": game["runId"],
             "roundId": game["roundId"],
@@ -531,6 +590,7 @@ def test_resume_active_infinite_game(
 
     response = client.get(
         f"/infinite/{game['runId']}",
+        headers=headers,
     )
 
     assert response.status_code == 200
@@ -564,6 +624,10 @@ def test_resume_latest_infinite_round(
         "/infinite/start",
     ).json()
 
+    headers = {
+        "X-Guest-Token": first_game["guestToken"],
+    }
+
     first_round = db_session.get(
         InfiniteRoundModel,
         UUID(first_game["roundId"]),
@@ -573,6 +637,7 @@ def test_resume_latest_infinite_round(
 
     client.post(
         "/infinite/guess",
+        headers=headers,
         json={
             "runId": first_game["runId"],
             "roundId": first_game["roundId"],
@@ -582,6 +647,7 @@ def test_resume_latest_infinite_round(
 
     next_response = client.post(
         "/infinite/next",
+        headers=headers,
         json={
             "runId": first_game["runId"],
             "roundId": first_game["roundId"],
@@ -594,6 +660,7 @@ def test_resume_latest_infinite_round(
 
     response = client.get(
         f"/infinite/{first_game['runId']}",
+        headers=headers,
     )
 
     assert response.status_code == 200
@@ -634,11 +701,16 @@ def test_resume_finished_infinite_round(
         "/infinite/start",
     ).json()
 
+    headers = {
+        "X-Guest-Token": game["guestToken"],
+    }
+
     final_result = None
 
     for _ in range(6):
         skip_response = client.post(
             "/infinite/skip",
+            headers=headers,
             json={
                 "runId": game["runId"],
                 "roundId": game["roundId"],
@@ -654,6 +726,7 @@ def test_resume_finished_infinite_round(
 
     response = client.get(
         f"/infinite/{game['runId']}",
+        headers=headers,
     )
 
     assert response.status_code == 200
