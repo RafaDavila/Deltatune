@@ -388,6 +388,7 @@ def submit_daily_guess(
     game_session = get_game_session(
         db,
         guess.session_id,
+        for_update=True,
     )
 
     if game_session is None:
@@ -479,6 +480,7 @@ def skip_daily_guess(
     game_session = get_game_session(
         db,
         skip.session_id,
+        for_update=True,
     )
 
     if game_session is None:

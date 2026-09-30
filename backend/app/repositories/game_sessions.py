@@ -16,6 +16,7 @@ AttemptStatus = Literal[
     "correct",
 ]
 
+from sqlalchemy.dialects.postgresql import insert
 
 def create_game_session(
     db: Session,
@@ -23,15 +24,46 @@ def create_game_session(
     user_id: UUID | None = None,
     guest_token_hash: str | None = None,
 ) -> GameSessionModel:
-    game_session = GameSessionModel(
-        challenge_id=challenge_id,
-        user_id=user_id,
-        guest_token_hash=guest_token_hash,
+    if user_id is None:
+        game_session = GameSessionModel(
+            challenge_id=challenge_id,
+            user_id=None,
+            guest_token_hash=guest_token_hash,
+        )
+
+        db.add(game_session)
+        db.commit()
+        db.refresh(game_session)
+
+        return game_session
+
+    statement = (
+        insert(GameSessionModel)
+        .values(
+            challenge_id=challenge_id,
+            user_id=user_id,
+            guest_token_hash=guest_token_hash,
+        )
+        .on_conflict_do_nothing(
+            index_elements=["user_id", "challenge_id"],
+        )
     )
 
-    db.add(game_session)
+    db.execute(statement)
+
+    game_session = get_game_session_by_user_and_challenge(
+        db,
+        user_id,
+        challenge_id,
+    )
+
+    if game_session is None:
+        db.rollback()
+        raise RuntimeError(
+            "Não foi possível criar ou recuperar a sessão diária."
+        )
+
     db.commit()
-    db.refresh(game_session)
 
     return game_session
 
@@ -58,6 +90,8 @@ def get_game_session_by_user_and_challenge(
 def get_game_session(
     db: Session,
     session_id: str,
+    *,
+    for_update: bool = False,
 ) -> GameSessionModel | None:
     try:
         parsed_session_id = UUID(session_id)
@@ -73,6 +107,13 @@ def get_game_session(
             GameSessionModel.id == parsed_session_id,
         )
     )
+
+    if for_update:
+        statement = (
+            statement
+            .with_for_update(of=GameSessionModel)
+            .execution_options(populate_existing=True)
+        )
 
     return db.scalar(statement)
 

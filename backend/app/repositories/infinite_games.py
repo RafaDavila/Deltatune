@@ -2,7 +2,7 @@ from typing import Literal
 from uuid import UUID
 
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.models.infinite_game import (
     InfiniteAttemptModel,
@@ -68,21 +68,46 @@ def create_infinite_run(
 def get_infinite_run(
     db: Session,
     run_id: UUID,
+    *,
+    for_update: bool = False,
 ) -> InfiniteRunModel | None:
-    return db.get(
-        InfiniteRunModel,
-        run_id,
+    statement = (
+        select(InfiniteRunModel)
+        .where(InfiniteRunModel.id == run_id)
     )
+
+    if for_update:
+        statement = (
+            statement
+            .with_for_update(of=InfiniteRunModel)
+            .execution_options(populate_existing=True)
+        )
+
+    return db.scalar(statement)
 
 
 def get_infinite_round(
     db: Session,
     round_id: UUID,
+    *,
+    for_update: bool = False,
 ) -> InfiniteRoundModel | None:
-    return db.get(
-        InfiniteRoundModel,
-        round_id,
+    statement = (
+        select(InfiniteRoundModel)
+        .where(InfiniteRoundModel.id == round_id)
     )
+
+    if for_update:
+        statement = (
+            statement
+            .options(
+                selectinload(InfiniteRoundModel.attempts),
+            )
+            .with_for_update(of=InfiniteRoundModel)
+            .execution_options(populate_existing=True)
+        )
+
+    return db.scalar(statement)
 
 def get_latest_infinite_round(
         db:Session,
