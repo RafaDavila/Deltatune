@@ -5,6 +5,9 @@ __pycache__/
 *.pyd
 
 .env
+.env.*
+**/.env
+**/.env.*
 .pytest_cache/
 .coverage
 htmlcov/
