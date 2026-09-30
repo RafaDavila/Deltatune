@@ -7,6 +7,7 @@ from app.models.infinite_game import (
 )
 from sqlalchemy import func, select
 from app.models.song import SongModel
+import pytest
 
 def create_authenticated_user(
     client: TestClient,
@@ -808,22 +809,27 @@ def test_return_best_record_only_from_current_user(
             InfiniteRunModel(
                 user_id=user_id,
                 current_streak=3,
+                best_streak=3,
             ),
             InfiniteRunModel(
                 user_id=user_id,
                 current_streak=12,
+                best_streak=12,
             ),
             InfiniteRunModel(
                 user_id=user_id,
                 current_streak=7,
+                best_streak=7,
             ),
             InfiniteRunModel(
                 user_id=other_user_id,
                 current_streak=99,
+                best_streak=99,
             ),
             InfiniteRunModel(
                 user_id=None,
                 current_streak=200,
+                best_streak=200,
             ),
         ]
     )
@@ -839,3 +845,117 @@ def test_return_best_record_only_from_current_user(
     assert response.json() == {
         "bestStreak": 12,
     }
+
+@pytest.mark.parametrize("loss_action", ["skip", "guess"])
+def test_preserve_infinite_record_after_loss_and_restart(
+    client: TestClient,
+    db_session: Session,
+    loss_action: str,
+) -> None:
+    _, headers = create_authenticated_user(
+        client,
+        "Jogador",
+        "record-persistence@example.com",
+    )
+
+    start = client.post("/infinite/start", headers=headers)
+    assert start.status_code == 201
+    game = start.json()
+    original_run_id = UUID(game["runId"])
+
+    # Vence duas rodadas e avança após cada vitória.
+    for expected_streak in (1, 2):
+        db_session.expire_all()
+        game_round = db_session.get(
+            InfiniteRoundModel,
+            UUID(game["roundId"]),
+        )
+        assert game_round is not None
+
+        victory = client.post(
+            "/infinite/guess",
+            headers=headers,
+            json={
+                "runId": game["runId"],
+                "roundId": game["roundId"],
+                "answer": game_round.song.title,
+            },
+        )
+        assert victory.status_code == 200
+        assert victory.json()["currentStreak"] == expected_streak
+
+        next_round = client.post(
+            "/infinite/next",
+            headers=headers,
+            json={
+                "runId": game["runId"],
+                "roundId": game["roundId"],
+            },
+        )
+        assert next_round.status_code == 201
+        game = next_round.json()
+
+    # Perde por pulos ou por seis respostas diferentes.
+    for attempt_number in range(6):
+        payload = {
+            "runId": game["runId"],
+            "roundId": game["roundId"],
+        }
+        if loss_action == "guess":
+            payload["answer"] = (
+                f"Resposta inexistente {attempt_number}"
+            )
+
+        loss = client.post(
+            f"/infinite/{loss_action}",
+            headers=headers,
+            json=payload,
+        )
+        assert loss.status_code == 200
+
+    assert loss.json()["gameFinished"] is True
+    assert loss.json()["won"] is False
+    assert loss.json()["currentStreak"] == 0
+
+    db_session.expire_all()
+    original_run = db_session.get(
+        InfiniteRunModel,
+        original_run_id,
+    )
+    assert original_run is not None
+    assert original_run.current_streak == 0
+    assert original_run.best_streak == 2
+
+    record = client.get("/infinite/record", headers=headers)
+    assert record.status_code == 200
+    assert record.json() == {"bestStreak": 2}
+
+    # Uma nova partida com recorde menor não reduz o histórico.
+    restart = client.post("/infinite/start", headers=headers)
+    assert restart.status_code == 201
+    new_game = restart.json()
+    assert new_game["runId"] != str(original_run_id)
+    assert new_game["currentStreak"] == 0
+
+    db_session.expire_all()
+    new_round = db_session.get(
+        InfiniteRoundModel,
+        UUID(new_game["roundId"]),
+    )
+    assert new_round is not None
+
+    victory = client.post(
+        "/infinite/guess",
+        headers=headers,
+        json={
+            "runId": new_game["runId"],
+            "roundId": new_game["roundId"],
+            "answer": new_round.song.title,
+        },
+    )
+    assert victory.status_code == 200
+    assert victory.json()["currentStreak"] == 1
+
+    record = client.get("/infinite/record", headers=headers)
+    assert record.status_code == 200
+    assert record.json() == {"bestStreak": 2}

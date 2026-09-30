@@ -23,6 +23,7 @@ import {
   startInfiniteGame,
   startNextInfiniteRound,
   submitInfiniteGuess,
+  getInfiniteRecord,
   type InfiniteGameResponse,
 } from "../services/deltatuneApi";
 import type { AttemptResult } from "../types/game";
@@ -41,19 +42,19 @@ const DEFAULT_ATTEMPT_DURATIONS = [
 const INFINITE_RUN_STORAGE_PREFIX =
   "deltatune-infinite-run";
 
-const INFINITE_RECORD_STORAGE_KEY =
+const INFINITE_RECORD_STORAGE_PREFIX =
   "deltatune-infinite-record";
 
-function loadInfiniteRecord(): number {
-  const savedRecord = localStorage.getItem(
-    INFINITE_RECORD_STORAGE_KEY,
-  );
+function loadInfiniteRecord(storageKey: string): number {
+  const savedRecord = localStorage.getItem(storageKey);
 
   if (savedRecord === null) {
     return 0;
   }
+
   const parsedRecord = Number(savedRecord);
-  return Number.isInteger(parsedRecord) &&
+
+  return Number.isSafeInteger(parsedRecord) &&
     parsedRecord >= 0
     ? parsedRecord
     : 0;
@@ -69,28 +70,85 @@ function InfiniteGamePage() {
     `${INFINITE_RUN_STORAGE_PREFIX}-` +
     `${user?.id ?? "anonymous"}`
   );
-  const [bestStreak, setBestStreak] =
-    useState(loadInfiniteRecord);
+    const infiniteRecordStorageKey = (
+    `${INFINITE_RECORD_STORAGE_PREFIX}-` +
+    `${user?.id ?? "anonymous"}`
+  );
+
+  const [recordState, setRecordState] = useState(() => ({
+    storageKey: infiniteRecordStorageKey,
+    value: loadInfiniteRecord(infiniteRecordStorageKey),
+  }));
+
+  
+
+  const [recordError, setRecordError] =
+    useState<string | null>(null);
+
+  const bestStreak =
+    recordState.storageKey === infiniteRecordStorageKey
+      ? recordState.value
+      : loadInfiniteRecord(infiniteRecordStorageKey);
 
   const updateBestStreak = useCallback(
     (currentStreak: number) => {
-      setBestStreak((previousBestStreak) => {
-        if (
-          currentStreak <= previousBestStreak
-        ) {
-          return previousBestStreak;
-        }
+      const nextRecord = Math.max(
+        loadInfiniteRecord(infiniteRecordStorageKey),
+        currentStreak,
+      );
 
-        localStorage.setItem(
-          INFINITE_RECORD_STORAGE_KEY,
-          currentStreak.toString(),
-        );
+      localStorage.setItem(
+        infiniteRecordStorageKey,
+        nextRecord.toString(),
+      );
 
-        return currentStreak;
+      setRecordState({
+        storageKey: infiniteRecordStorageKey,
+        value: nextRecord,
       });
     },
-    [],
+    [infiniteRecordStorageKey],
   );
+
+    useEffect(() => {
+    if (isAuthLoading || !user?.id) {
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadAccountRecord() {
+      try {
+        const record = await getInfiniteRecord();
+
+        if (!cancelled) {
+          updateBestStreak(record.bestStreak);
+          setRecordError(null);
+        }
+      } catch (error) {
+        console.error(
+          "Erro ao carregar recorde:",
+          error,
+        );
+
+        if (!cancelled) {
+          setRecordError(
+            "Não foi possível carregar o recorde da conta.",
+          );
+        }
+      }
+    }
+
+    void loadAccountRecord();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    isAuthLoading,
+    user?.id,
+    updateBestStreak,
+  ]);
 
   const [game, setGame] =
     useState<InfiniteGameResponse | null>(null);
@@ -624,6 +682,10 @@ function InfiniteGamePage() {
           Recorde:{" "}
           <strong>{bestStreak}</strong>
         </p>
+
+                {user && recordError && (
+          <p role="status">{recordError}</p>
+        )}
 
         <LivesDisplay
           remainingLives={remainingLives}
