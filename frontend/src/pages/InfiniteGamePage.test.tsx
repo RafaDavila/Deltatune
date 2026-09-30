@@ -1,4 +1,5 @@
 import {
+  act,
   render,
   screen,
   waitFor,
@@ -14,13 +15,20 @@ import {
 import InfiniteGamePage from "./InfiniteGamePage";
 import {
   getSongs,
+  getInfiniteRecord,
   resumeInfiniteGame,
   startInfiniteGame,
   type ResumeInfiniteGameResponse,
 } from "../services/deltatuneApi";
 
+const authState = vi.hoisted(() => ({
+  user: null as { id: string } | null,
+  isLoading: false,
+}));
+
 vi.mock("../services/deltatuneApi", () => ({
 
+  getInfiniteRecord: vi.fn(),
   getSongs: vi.fn(),
   resumeInfiniteGame: vi.fn(),
   startInfiniteGame: vi.fn(),
@@ -33,9 +41,13 @@ vi.mock("../services/deltatuneApi", () => ({
 }));
 
 vi.mock("../hooks/useAuth", () => ({
-  useAuth: () => ({
-    user: null,
-    isLoading: false,
+  useAuth: () => authState,
+}));
+
+vi.mock("../hooks/useInfiniteAudio", () => ({
+  default: () => ({
+    audioUrl: "/infinite-audio.mp3",
+    audioError: null,
   }),
 }));
 
@@ -92,6 +104,13 @@ function renderPage() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  authState.user = null;
+  authState.isLoading = false;
+
+  vi.mocked(getInfiniteRecord).mockReset();
+  vi.mocked(getInfiniteRecord).mockResolvedValue({
+    bestStreak: 0,
+  });
   localStorage.clear();
 
 
@@ -166,7 +185,7 @@ test(
     );
 
     localStorage.setItem(
-      "deltatune-infinite-record",
+      "deltatune-infinite-record-anonymous",
       "1",
     );
     vi.mocked(
@@ -189,5 +208,174 @@ test(
     ).toHaveTextContent(
       "Sequência atual: 2 . Recorde: 2",
     );
+  },
+);
+
+test(
+  "recupera o recorde da conta sem armazenamento local",
+  async () => {
+    authState.user = { id: "user-a" };
+
+    vi.mocked(getInfiniteRecord).mockResolvedValue({
+      bestStreak: 12,
+    });
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/Sequência atual:/),
+      ).toHaveTextContent(
+        "Sequência atual: 0 . Recorde: 12",
+      );
+    });
+
+    expect(getInfiniteRecord).toHaveBeenCalledTimes(1);
+
+    expect(
+      localStorage.getItem(
+        "deltatune-infinite-record-user-a",
+      ),
+    ).toBe("12");
+
+    expect(
+      localStorage.getItem(
+        "deltatune-infinite-record-anonymous",
+      ),
+    ).toBeNull();
+  },
+);
+
+test(
+  "recupera o recorde mesmo com a partida perdida",
+  async () => {
+    authState.user = { id: "user-a" };
+
+    localStorage.setItem(
+      "deltatune-infinite-run-user-a",
+      resumedGame.runId,
+    );
+
+    vi.mocked(getInfiniteRecord).mockResolvedValue({
+      bestStreak: 12,
+    });
+
+    vi.mocked(resumeInfiniteGame).mockResolvedValue({
+      ...resumedGame,
+      currentStreak: 0,
+      remainingLives: 0,
+      attempts: Array.from({ length: 6 }, () => ({
+        answer: "Pulou",
+        status: "skipped" as const,
+      })),
+      won: false,
+      gameFinished: true,
+      songTitle: "Dark Sanctuary",
+    });
+
+    renderPage();
+
+    await screen.findByText("003");
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/Sequência atual:/),
+      ).toHaveTextContent(
+        "Sequência atual: 0 . Recorde: 12",
+      );
+    });
+
+    expect(
+      screen.getByText("0 de 6 tentativas restantes"),
+    ).toBeInTheDocument();
+
+    expect(startInfiniteGame).not.toHaveBeenCalled();
+  },
+);
+
+test(
+  "separa contas e ignora resposta atrasada da conta anterior",
+  async () => {
+    authState.user = { id: "user-a" };
+
+    localStorage.setItem(
+      "deltatune-infinite-record-user-a",
+      "12",
+    );
+    localStorage.setItem(
+      "deltatune-infinite-record-user-b",
+      "3",
+    );
+    localStorage.setItem(
+      "deltatune-infinite-record-anonymous",
+      "50",
+    );
+
+    let resolveFirstRecord!: (
+      record: { bestStreak: number },
+    ) => void;
+
+    const firstRecord = new Promise<{
+      bestStreak: number;
+    }>((resolve) => {
+      resolveFirstRecord = resolve;
+    });
+
+    vi.mocked(getInfiniteRecord)
+      .mockReturnValueOnce(firstRecord)
+      .mockResolvedValueOnce({ bestStreak: 4 });
+
+    const view = renderPage();
+
+    await waitFor(() => {
+      expect(getInfiniteRecord).toHaveBeenCalledTimes(1);
+    });
+
+    expect(
+      screen.getByText(/Sequência atual:/),
+    ).toHaveTextContent("Recorde: 12");
+
+    authState.user = { id: "user-b" };
+
+    view.rerender(
+      <MemoryRouter>
+        <InfiniteGamePage />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/Sequência atual:/),
+      ).toHaveTextContent("Recorde: 4");
+    });
+
+    await act(async () => {
+      resolveFirstRecord({ bestStreak: 99 });
+      await firstRecord;
+    });
+
+    expect(
+      screen.getByText(/Sequência atual:/),
+    ).toHaveTextContent("Recorde: 4");
+
+    expect(
+      localStorage.getItem(
+        "deltatune-infinite-record-user-a",
+      ),
+    ).toBe("12");
+
+    expect(
+      localStorage.getItem(
+        "deltatune-infinite-record-user-b",
+      ),
+    ).toBe("4");
+
+    expect(
+      localStorage.getItem(
+        "deltatune-infinite-record-anonymous",
+      ),
+    ).toBe("50");
+
+    expect(getInfiniteRecord).toHaveBeenCalledTimes(2);
   },
 );

@@ -145,6 +145,10 @@ def add_infinite_attempt(
 
     if status == "correct":
         game_run.current_streak += 1
+        game_run.best_streak = max(
+            game_run.best_streak,
+            game_run.current_streak,
+        )
     elif game_round.remaining_lives == 0:
         game_run.current_streak = 0
 
@@ -225,7 +229,7 @@ def get_user_infinite_record(
     statement = (
         select(
             func.max(
-                InfiniteRunModel.current_streak,
+                InfiniteRunModel.best_streak,
             )
         )
         .where(
