@@ -402,3 +402,66 @@ describe("guest game request headers", () => {
     );
   });
 });
+
+describe("infinite start request", () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    localStorage.clear();
+  });
+
+  it.each([true, false])(
+    "uses the API URL with authenticated=%s",
+    async (authenticated) => {
+      if (authenticated) {
+        saveAccessToken("infinite-access-token");
+      }
+
+      const game = {
+        runId: "run-id",
+        roundId: "round-id",
+        roundNumber: 1,
+        attemptDurations: [0.5, 1, 2, 4, 8, 16],
+        remainingLives: 6,
+        maximumAttempts: 6,
+        currentStreak: 0,
+        guestToken: authenticated ? null : "guest-token",
+      };
+
+      const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+        new Response(JSON.stringify(game), {
+          status: 201,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }),
+      );
+
+      vi.stubGlobal("fetch", fetchMock);
+
+      const result = await startInfiniteGame();
+
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+
+      const [url, options] = fetchMock.mock.calls[0];
+      const apiBaseUrl = (
+        import.meta.env.VITE_API_URL ??
+        "http://127.0.0.1:8000"
+      ).replace(/\/$/, "");
+
+      expect(String(url)).toBe(`${apiBaseUrl}/infinite/start`);
+      expect(options?.method).toBe("POST");
+
+      const headers = new Headers(options?.headers);
+
+      expect(headers.get("Authorization")).toBe(
+        authenticated ? "Bearer infinite-access-token" : null,
+      );
+      expect(headers.get("X-Guest-Token")).toBeNull();
+      expect(result).toEqual(game);
+    },
+  );
+});
