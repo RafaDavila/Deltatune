@@ -83,6 +83,8 @@ def get_validated_infinite_round(
     round_id: UUID,
     current_user: UserModel | None,
     guest_token: str | None,
+    *,
+    for_update: bool = False,
 ) -> tuple[
     InfiniteRunModel,
     InfiniteRoundModel,
@@ -90,6 +92,7 @@ def get_validated_infinite_round(
     game_run = get_infinite_run(
         db,
         run_id,
+        for_update=for_update,
     )
 
     if game_run is None:
@@ -111,6 +114,7 @@ def get_validated_infinite_round(
     game_round = get_infinite_round(
         db,
         round_id,
+        for_update=for_update,
     )
 
     if game_round is None:
@@ -276,6 +280,7 @@ def submit_infinite_guess(
             guess.round_id,
             current_user=current_user,
             guest_token=guest_token,
+            for_update=True,
         )
     )
 
@@ -370,6 +375,7 @@ def skip_infinite_guess(
             skip.round_id,
             current_user=current_user,
             guest_token=guest_token,
+            for_update=True,
         )
     )
 
@@ -427,6 +433,7 @@ def start_next_infinite_round(
             request.round_id,
             current_user=current_user,
             guest_token=guest_token,
+            for_update=True,
         )
     )
 
