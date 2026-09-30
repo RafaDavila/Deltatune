@@ -10,6 +10,7 @@ from app.config import settings
 from app.repositories.password_reset_tokens import (
     create_password_reset_token,
     reset_password_with_token,
+    get_active_password_reset_token,
 )
 from app.services.email_service import (
     EmailDeliveryError,
@@ -290,39 +291,63 @@ def forgot_password(
 )
 def reset_password(
     request: ResetPasswordRequest,
+    http_request: Request,
     db: DatabaseSession,
 ) -> PasswordResetMessageResponse:
+    client_ip = get_client_ip(http_request)
+
+    enforce_rate_limit(
+        db,
+        scope="reset-password-ip",
+        identifier=client_ip,
+        limit=10,
+        window_seconds=15 * 60,
+    )
+
+    invalid_token_message = (
+        "O link de recuperação é inválido "
+        "ou expirou."
+    )
+
     token_hash = hash_password_reset_token(
         request.token,
     )
+
+    reset_token = get_active_password_reset_token(
+        db,
+        token_hash,
+    )
+
+    token_is_active = reset_token is not None
+
+    # Encerra a consulta preliminar antes do hash caro.
+    # O consumo final verifica novamente o token sob bloqueio.
+    db.rollback()
+
+    if not token_is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=invalid_token_message,
+        )
 
     new_password_hash = hash_password(
         request.new_password,
     )
 
-    password_was_reset = (
-        reset_password_with_token(
-            db,
-            token_hash=token_hash,
-            new_password_hash=(
-                new_password_hash
-            ),
-        )
+    password_was_reset = reset_password_with_token(
+        db,
+        token_hash=token_hash,
+        new_password_hash=new_password_hash,
     )
 
     if not password_was_reset:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=(
-                "O link de recuperação é inválido "
-                "ou expirou."
-            ),
+            detail=invalid_token_message,
         )
 
     return PasswordResetMessageResponse(
-        message=(
-            "Senha redefinida com sucesso."
-        ),
+        message="Senha redefinida com sucesso.",
     )
 
 @router.get(
