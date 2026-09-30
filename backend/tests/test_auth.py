@@ -7,6 +7,11 @@ from app.repositories.users import (
 from app.services.passwords import (
     verify_password,
 )
+from datetime import datetime, timedelta, timezone
+
+from app.repositories.password_reset_tokens import (
+    create_password_reset_token,
+)
 
 import jwt
 import pytest
@@ -951,6 +956,124 @@ def test_limits_password_reset_by_ip(
         "Aguarde e tente novamente."
     )
 
+    assert 1 <= int(
+        blocked_response.headers["Retry-After"],
+    ) <= 900
+
+@pytest.mark.parametrize(
+    "token_state",
+    ["unknown", "expired", "used"],
+)
+def test_reject_reset_token_before_password_hash(
+    client: TestClient,
+    db_session: Session,
+    monkeypatch: MonkeyPatch,
+    token_state: str,
+) -> None:
+    raw_token = "x" * 43
+
+    if token_state != "unknown":
+        registration = client.post(
+            "/auth/register",
+            json={
+                "displayName": "Rafael",
+                "email": "reset-protection@example.com",
+                "password": "SenhaAntiga123!",
+            },
+        )
+
+        assert registration.status_code == 201
+
+        now = datetime.now(timezone.utc)
+
+        saved_token = create_password_reset_token(
+            db_session,
+            user_id=UUID(registration.json()["id"]),
+            token_hash=hash_password_reset_token(raw_token),
+            expires_at=now + timedelta(minutes=15),
+        )
+
+        if token_state == "expired":
+            saved_token.expires_at = now - timedelta(minutes=1)
+        else:
+            saved_token.used_at = now
+
+        db_session.commit()
+
+    def forbidden_hash(password: str) -> str:
+        pytest.fail(
+            "Token inválido não deve calcular o hash da senha."
+        )
+
+    monkeypatch.setattr(
+        "app.routers.auth.hash_password",
+        forbidden_hash,
+    )
+
+    response = client.post(
+        "/auth/reset-password",
+        json={
+            "token": raw_token,
+            "newPassword": "SenhaNova123!",
+        },
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == (
+        "O link de recuperação é inválido "
+        "ou expirou."
+    )
+
+
+def test_limits_reset_password_before_token_lookup_and_hash(
+    client: TestClient,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    def forbidden_hash(password: str) -> str:
+        pytest.fail(
+            "Esta requisição não deve calcular o hash da senha."
+        )
+
+    monkeypatch.setattr(
+        "app.routers.auth.hash_password",
+        forbidden_hash,
+    )
+
+    # Tokens diferentes também devem compartilhar o limite por IP.
+    for index in range(10):
+        response = client.post(
+            "/auth/reset-password",
+            json={
+                "token": f"{index:043d}",
+                "newPassword": "SenhaNova123!",
+            },
+        )
+
+        assert response.status_code == 400
+
+    def forbidden_lookup(*args, **kwargs):
+        pytest.fail(
+            "O limite deve bloquear antes da consulta do token."
+        )
+
+    monkeypatch.setattr(
+        "app.routers.auth.get_active_password_reset_token",
+        forbidden_lookup,
+    )
+
+    blocked_response = client.post(
+        "/auth/reset-password",
+        json={
+            "token": "z" * 43,
+            "newPassword": "SenhaNova123!",
+        },
+    )
+
+    assert blocked_response.status_code == 429
+    assert blocked_response.json()["detail"] == (
+        "Muitas solicitações. "
+        "Aguarde e tente novamente."
+    )
     assert 1 <= int(
         blocked_response.headers["Retry-After"],
     ) <= 900
