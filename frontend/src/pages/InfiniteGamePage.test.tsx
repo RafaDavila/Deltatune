@@ -198,7 +198,7 @@ test(
     await waitFor(() => {
       expect(
         localStorage.getItem(
-          "deltatune-infinite-record",
+          "deltatune-infinite-record-anonymous",
         ),
       ).toBe("2");
     });
