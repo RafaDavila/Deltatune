@@ -272,17 +272,21 @@ function MusicGamePage() {
     let cancelled = false;
 
     async function createNewSession() {
-      const challenge = await startDailyChallenge();
+      const startedGame = await startDailyChallenge();
 
       localStorage.setItem(
         gameSessionStorageKey,
-        challenge.sessionId,
+        startedGame.sessionId,
+      );
+
+      const resumedGame = await resumeDailyChallenge(
+        startedGame.sessionId,
       );
 
       return {
-        challenge,
-        attempts: [] as AttemptResult[],
-        songTitle: null as string | null,
+        challenge: resumedGame,
+        attempts: resumedGame.attempts,
+        songTitle: resumedGame.songTitle,
       };
     }
 
