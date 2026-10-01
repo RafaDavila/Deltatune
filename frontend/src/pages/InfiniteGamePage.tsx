@@ -16,7 +16,7 @@ import SiteFooter from "../components/SiteFooter";
 import TutorialModal from "../components/TutorialModal";
 import useAudioClip from "../hooks/useAudioClip";
 import {
-
+  ApiError,
   getSongs,
   resumeInfiniteGame,
   skipInfiniteGuess,
@@ -38,6 +38,8 @@ const DEFAULT_ATTEMPT_DURATIONS = [
   8,
   16,
 ];
+
+
 
 const INFINITE_RUN_STORAGE_PREFIX =
   "deltatune-infinite-run";
@@ -178,6 +180,7 @@ function InfiniteGamePage() {
 
   const [gameError, setGameError] =
     useState<string | null>(null);
+  const [recoveryAttempt, setRecoveryAttempt] = useState(0);
 
   const [guessError, setGuessError] =
     useState<string | null>(null);
@@ -347,7 +350,18 @@ function InfiniteGamePage() {
                   attempts: resumedGame.attempts,
                   songTitle: resumedGame.songTitle,
                 };
-              } catch {
+              } catch (error) {
+                if (cancelled) {
+                  return;
+                }
+
+                if (
+                  !(error instanceof ApiError) ||
+                  error.status !== 404
+                ) {
+                  throw error;
+                }
+
                 localStorage.removeItem(
                   infiniteRunStorageKey,
                 );
@@ -401,6 +415,7 @@ function InfiniteGamePage() {
     }, [
       infiniteRunStorageKey,
       isAuthLoading,
+      recoveryAttempt,
       updateBestStreak,
     ]);
 
@@ -711,6 +726,17 @@ function InfiniteGamePage() {
           onStop={stopAudio}
           onVolumeChange={setVolume}
         />
+
+        {gameError && (
+          <button
+            className="result-modal__continue"
+            type="button"
+            disabled={isGameLoading}
+            onClick={() => setRecoveryAttempt((previous) => previous + 1)}
+          >
+            {isGameLoading ? "Carregando..." : "Tentar novamente"}
+          </button>
+        )}
 
         <GuessForm
           guess={guess}

@@ -1,5 +1,6 @@
 import {
   act,
+  fireEvent,
   render,
   screen,
   waitFor,
@@ -14,6 +15,7 @@ import {
 
 import InfiniteGamePage from "./InfiniteGamePage";
 import {
+  ApiError,
   getSongs,
   getInfiniteRecord,
   resumeInfiniteGame,
@@ -26,8 +28,44 @@ const authState = vi.hoisted(() => ({
   isLoading: false,
 }));
 
-vi.mock("../services/deltatuneApi", () => ({
+test.each([new Error("offline"), new ApiError("indisponivel", 503), new ApiError("sem acesso", 403)])(
+  "preserva a partida e permite repetir a recuperacao: %s",
+  async (error) => {
+    const storageKey = "deltatune-infinite-run-anonymous";
+    localStorage.setItem(storageKey, resumedGame.runId);
+    vi.mocked(resumeInfiniteGame)
+      .mockRejectedValueOnce(error)
+      .mockResolvedValue(resumedGame);
 
+    renderPage();
+
+    const retryButton = await screen.findByRole("button", { name: "Tentar novamente" });
+    expect(localStorage.getItem(storageKey)).toBe(resumedGame.runId);
+    expect(startInfiniteGame).not.toHaveBeenCalled();
+
+    fireEvent.click(retryButton);
+
+    await screen.findByText("003");
+    expect(resumeInfiniteGame).toHaveBeenCalledTimes(2);
+    expect(startInfiniteGame).not.toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: "Tentar novamente" })).not.toBeInTheDocument();
+  },
+);
+
+test("substitui a partida salva somente quando recebe 404", async () => {
+  const storageKey = "deltatune-infinite-run-anonymous";
+  localStorage.setItem(storageKey, "missing-run");
+  vi.mocked(resumeInfiniteGame).mockRejectedValueOnce(new ApiError("nao encontrada", 404));
+
+  renderPage();
+
+  await screen.findByText("001");
+  expect(startInfiniteGame).toHaveBeenCalledTimes(1);
+  expect(localStorage.getItem(storageKey)).toBe("new-run");
+});
+
+vi.mock("../services/deltatuneApi", async (importOriginal) => ({
+  ApiError: (await importOriginal<typeof import("../services/deltatuneApi")>()).ApiError,
   getInfiniteRecord: vi.fn(),
   getSongs: vi.fn(),
   resumeInfiniteGame: vi.fn(),
@@ -379,3 +417,12 @@ test(
     expect(getInfiniteRecord).toHaveBeenCalledTimes(2);
   },
 );
+
+test.each([
+  new TypeError("Failed to fetch"),
+  new ApiError("Erro interno.", 500),
+  new ApiError("Serviço indisponível.", 503),
+  new ApiError("Autenticação inválida.", 401),
+  new ApiError("Acesso negado.", 403),
+  new ApiError("Outro conflito.", 409),
+])
