@@ -4,7 +4,7 @@ import deltatuneLogo from "../assets/deltatune-logo.png";
 import SiteFooter from "../components/SiteFooter";
 import TutorialModal from "../components/TutorialModal";
 import ResultModal from "../components/ResultModal";
-import { getDailyAudioUrl, getSongs, resumeDailyChallenge, skipDailyGuess, startDailyChallenge, submitDailyGuess, type DailyChallengeResponse, getDailyStreakStats, type DailyStreakResponse } from "../services/deltatuneApi";
+import { ApiError, getDailyAudioUrl, getSongs, resumeDailyChallenge, skipDailyGuess, startDailyChallenge, submitDailyGuess, type DailyChallengeResponse, getDailyStreakStats, type DailyStreakResponse } from "../services/deltatuneApi";
 import LivesDisplay from "../components/LivesDisplay";
 import type { AttemptResult } from "../types/game";
 import AttemptList from "../components/AttemptList";
@@ -91,6 +91,7 @@ function MusicGamePage() {
     useState<string | null>(null);
   const [dailyChallenge, setDailyChallenge] = useState<DailyChallengeResponse | null>(null);
   const [challengeError, setChallengeError] = useState<string | null>(null);
+  const [recoveryAttempt, setRecoveryAttempt] = useState(0);
   const [songTitles, setSongTitles] =
     useState<string[]>([]);
 
@@ -308,26 +309,37 @@ function MusicGamePage() {
         if (savedSessionId) {
           try {
             const resumedGame =
-              await resumeDailyChallenge(
-                savedSessionId,
-              );
+              await resumeDailyChallenge(savedSessionId);
 
             loadedGame = {
               challenge: resumedGame,
               attempts: resumedGame.attempts,
               songTitle: resumedGame.songTitle,
             };
-          } catch {
-            localStorage.removeItem(
-              gameSessionStorageKey,
-            );
+          } catch (error) {
+            if (cancelled) {
+              return;
+            }
 
-            loadedGame =
-              await createNewSession();
+            const sessionCannotBeResumed =
+              error instanceof ApiError &&
+              (
+                error.status === 404 ||
+                (
+                  error.status === 409 &&
+                  error.message === "A sessão pertence a outro desafio."
+                )
+              );
+
+            if (!sessionCannotBeResumed) {
+              throw error;
+            }
+
+            localStorage.removeItem(gameSessionStorageKey);
+            loadedGame = await createNewSession();
           }
         } else {
-          loadedGame =
-            await createNewSession();
+          loadedGame = await createNewSession();
         }
 
         if (cancelled) {
@@ -376,241 +388,253 @@ function MusicGamePage() {
   }, [
     gameSessionStorageKey,
     isAuthLoading,
+    recoveryAttempt,
   ]);
 
 
-  async function handleSkip() {
-    if (
-      gameFinished ||
-      isGameUnavailable ||
-      isSubmittingGuess ||
-      !dailyChallenge ||
-      !sessionId
-    ) {
-      return;
-    }
-
-    stopAudio();
-    setIsSubmittingGuess(true);
-    setGuessError(null);
-
-    try {
-      const result = await skipDailyGuess(
-        sessionId,
-        dailyChallenge.challengeId,
-      );
-
-      setAttemptResults((previousResults) => [
-        ...previousResults,
-        {
-          answer: "Pulou",
-          status: "skipped",
-        },
-      ]);
-
-      if (result.songTitle) {
-        setRevealedSongTitle(result.songTitle);
-      }
-
-      setGuess("");
-    } catch (error) {
-      console.error(
-        "Erro ao pular tentativa:",
-        error,
-      );
-
-      setGuessError(
-        "Não foi possível pular a tentativa. Tente novamente.",
-      );
-    } finally {
-      setIsSubmittingGuess(false);
-    }
-  }
-
-  async function handleSubmit(
-    event: SubmitEvent<HTMLFormElement>,
+async function handleSkip() {
+  if (
+    gameFinished ||
+    isGameUnavailable ||
+    isSubmittingGuess ||
+    !dailyChallenge ||
+    !sessionId
   ) {
-    event.preventDefault();
-
-    const cleanedGuess = guess.trim();
-
-    if (
-      gameFinished ||
-      isGameUnavailable ||
-      isSubmittingGuess ||
-      !dailyChallenge ||
-      !sessionId ||
-      !cleanedGuess
-    ) {
-      return;
-    }
-
-    stopAudio();
-    setIsSubmittingGuess(true);
-    setGuessError(null);
-
-    try {
-      const result = await submitDailyGuess(
-        sessionId,
-        dailyChallenge.challengeId,
-        cleanedGuess,
-      );
-
-      setAttemptResults((previousResults) => [
-        ...previousResults,
-        {
-          answer: cleanedGuess,
-          status: result.correct
-            ? "correct"
-            : "wrong",
-        },
-      ]);
-
-      if (result.songTitle) {
-        setRevealedSongTitle(result.songTitle);
-      }
-
-      setGuess("");
-    } catch (error) {
-      console.error(
-        "Erro ao validar palpite:",
-        error,
-      );
-
-      setGuessError(
-        error instanceof Error
-          ? error.message
-          : "Não foi possível validar o palpite. Tente novamente.",
-      );
-    } finally {
-      setIsSubmittingGuess(false);
-    }
+    return;
   }
 
-  function handleCloseTutorial(dontShowAgain: boolean) {
-    if (dontShowAgain) {
-      localStorage.setItem("deltatune-hide-tutorial", "true");
+  stopAudio();
+  setIsSubmittingGuess(true);
+  setGuessError(null);
+
+  try {
+    const result = await skipDailyGuess(
+      sessionId,
+      dailyChallenge.challengeId,
+    );
+
+    setAttemptResults((previousResults) => [
+      ...previousResults,
+      {
+        answer: "Pulou",
+        status: "skipped",
+      },
+    ]);
+
+    if (result.songTitle) {
+      setRevealedSongTitle(result.songTitle);
     }
 
-    setIsTutorialOpen(false);
+    setGuess("");
+  } catch (error) {
+    console.error(
+      "Erro ao pular tentativa:",
+      error,
+    );
+
+    setGuessError(
+      "Não foi possível pular a tentativa. Tente novamente.",
+    );
+  } finally {
+    setIsSubmittingGuess(false);
+  }
+}
+
+async function handleSubmit(
+  event: SubmitEvent<HTMLFormElement>,
+) {
+  event.preventDefault();
+
+  const cleanedGuess = guess.trim();
+
+  if (
+    gameFinished ||
+    isGameUnavailable ||
+    isSubmittingGuess ||
+    !dailyChallenge ||
+    !sessionId ||
+    !cleanedGuess
+  ) {
+    return;
   }
 
-  return (
-    <main className="music-game">
-      <header className="music-game__topbar">
-        <Link className="back-link" to="/">
-          ← Voltar
-        </Link>
+  stopAudio();
+  setIsSubmittingGuess(true);
+  setGuessError(null);
 
-        <img className="music-game__logo" src={deltatuneLogo} alt="Deltatune" />
+  try {
+    const result = await submitDailyGuess(
+      sessionId,
+      dailyChallenge.challengeId,
+      cleanedGuess,
+    );
 
+    setAttemptResults((previousResults) => [
+      ...previousResults,
+      {
+        answer: cleanedGuess,
+        status: result.correct
+          ? "correct"
+          : "wrong",
+      },
+    ]);
+
+    if (result.songTitle) {
+      setRevealedSongTitle(result.songTitle);
+    }
+
+    setGuess("");
+  } catch (error) {
+    console.error(
+      "Erro ao validar palpite:",
+      error,
+    );
+
+    setGuessError(
+      error instanceof Error
+        ? error.message
+        : "Não foi possível validar o palpite. Tente novamente.",
+    );
+  } finally {
+    setIsSubmittingGuess(false);
+  }
+}
+
+function handleCloseTutorial(dontShowAgain: boolean) {
+  if (dontShowAgain) {
+    localStorage.setItem("deltatune-hide-tutorial", "true");
+  }
+
+  setIsTutorialOpen(false);
+}
+
+return (
+  <main className="music-game">
+    <header className="music-game__topbar">
+      <Link className="back-link" to="/">
+        ← Voltar
+      </Link>
+
+      <img className="music-game__logo" src={deltatuneLogo} alt="Deltatune" />
+
+      <button
+        className="tutorial-button"
+        type="button"
+        aria-label="Abrir tutorial"
+        onClick={() => setIsTutorialOpen(true)}
+      >
+        ?
+      </button>
+    </header>
+
+    <section className="music-panel">
+      <div className="music-panel__heading">
+        <p>Escute o trecho e descubra qual música está tocando.</p>
+      </div>
+
+      <div className="daily-challenge" aria-label={
+        dailyChallenge
+          ? `Música do dia número ${dailyChallenge.challengeNumber}`
+          : "Carregando música do dia"
+      }>
+
+        <span>Música do dia:</span>
+        <strong>{dailyChallenge
+          ? `${String(
+            dailyChallenge.challengeNumber,
+          ).padStart(2, "0")}`
+          : "CARREGANDO"}
+        </strong>
+      </div>
+      <p
+        className="daily-challenge__countdown"
+        aria-live="polite"
+      >
+        Próxima música em{" "}
+        <strong>{resetCountdown}</strong>
+      </p>
+
+      <LivesDisplay
+        remainingLives={remainingLives}
+        maximumLives={attemptDurations.length}
+      ></LivesDisplay>
+
+      <AttemptList
+        attemptDurations={attemptDurations}
+        attemptResults={attemptResults}
+      ></AttemptList>
+
+      <AudioPlayer
+        audioRef={audioRef}
+        audioUrl={dailyAudioUrl}
+        attemptDurations={attemptDurations}
+        currentAttempt={currentAttempt}
+        unlockedDuration={unlockedDuration}
+        gameFinished={gameFinished}
+        isPlaying={isPlaying}
+        volume={volume}
+        challengeError={challengeError}
+        onPlay={handlePlay}
+        onStop={stopAudio}
+        onVolumeChange={setVolume}
+      />
+
+
+      {challengeError && (
         <button
-          className="tutorial-button"
+          className="result-modal__continue"
           type="button"
-          aria-label="Abrir tutorial"
-          onClick={() => setIsTutorialOpen(true)}
+          disabled={isChallengeLoading}
+          onClick={() => setRecoveryAttempt((previous) => previous + 1)}
         >
-          ?
+          {isChallengeLoading ? "Carregando..." : "Tentar novamente"}
         </button>
-      </header>
-
-      <section className="music-panel">
-        <div className="music-panel__heading">
-          <p>Escute o trecho e descubra qual música está tocando.</p>
-        </div>
-
-        <div className="daily-challenge" aria-label={
-          dailyChallenge
-            ? `Música do dia número ${dailyChallenge.challengeNumber}`
-            : "Carregando música do dia"
-        }>
-
-          <span>Música do dia:</span>
-          <strong>{dailyChallenge
-            ? `${String(
-              dailyChallenge.challengeNumber,
-            ).padStart(2, "0")}`
-            : "CARREGANDO"}
-          </strong>
-        </div>
-        <p
-          className="daily-challenge__countdown"
-          aria-live="polite"
-        >
-          Próxima música em{" "}
-          <strong>{resetCountdown}</strong>
-        </p>
-
-        <LivesDisplay
-          remainingLives={remainingLives}
-          maximumLives={attemptDurations.length}
-        ></LivesDisplay>
-
-        <AttemptList
-          attemptDurations={attemptDurations}
-          attemptResults={attemptResults}
-        ></AttemptList>
-
-        <AudioPlayer
-          audioRef={audioRef}
-          audioUrl={dailyAudioUrl}
-          attemptDurations={attemptDurations}
-          currentAttempt={currentAttempt}
-          unlockedDuration={unlockedDuration}
-          gameFinished={gameFinished}
-          isPlaying={isPlaying}
-          volume={volume}
-          challengeError={challengeError}
-          onPlay={handlePlay}
-          onStop={stopAudio}
-          onVolumeChange={setVolume}
-        />
-
-
-        <GuessForm
-          guess={guess}
-          songTitles={songTitles}
-          guessError={guessError}
-          songCatalogError={songCatalogError}
-          disabled={
-            gameFinished ||
-            isGameUnavailable ||
-            isSubmittingGuess
-          }
-          isSubmitting={isSubmittingGuess}
-          onGuessChange={setGuess}
-          onSkip={handleSkip}
-          onSubmit={handleSubmit}
-        ></GuessForm>
-
-
-        <SiteFooter />
-      </section>
-
-      {isTutorialOpen && <TutorialModal onClose={handleCloseTutorial} />}
-      {isResultOpen && (
-        <ResultModal
-          hasWon={hasWon}
-          songTitle={revealedSongTitle ?? "Resposta não revelada"}
-          attemptsUsed={attemptResults.length}
-          remainingLives={remainingLives}
-          isPlaying={isPlaying}
-          currentStreak={
-            isAuthenticated
-              ? dailyStreak?.currentStreak
-              : undefined
-          }
-          bestStreak={
-            isAuthenticated
-              ? dailyStreak?.bestStreak
-              : undefined
-          }
-          onReplay={handlePlay}
-          onClose={() => setIsResultOpen(false)}
-        />
       )}
-    </main>
-  );
+
+      <GuessForm
+        guess={guess}
+        songTitles={songTitles}
+        guessError={guessError}
+        songCatalogError={songCatalogError}
+        disabled={
+          gameFinished ||
+          isGameUnavailable ||
+          isSubmittingGuess
+        }
+        isSubmitting={isSubmittingGuess}
+        onGuessChange={setGuess}
+        onSkip={handleSkip}
+        onSubmit={handleSubmit}
+      ></GuessForm>
+
+
+      <SiteFooter />
+    </section>
+
+    {isTutorialOpen && <TutorialModal onClose={handleCloseTutorial} />}
+    {isResultOpen && (
+      <ResultModal
+        hasWon={hasWon}
+        songTitle={revealedSongTitle ?? "Resposta não revelada"}
+        attemptsUsed={attemptResults.length}
+        remainingLives={remainingLives}
+        isPlaying={isPlaying}
+        currentStreak={
+          isAuthenticated
+            ? dailyStreak?.currentStreak
+            : undefined
+        }
+        bestStreak={
+          isAuthenticated
+            ? dailyStreak?.bestStreak
+            : undefined
+        }
+        onReplay={handlePlay}
+        onClose={() => setIsResultOpen(false)}
+      />
+    )}
+  </main>
+);
 }
 
 export default MusicGamePage;

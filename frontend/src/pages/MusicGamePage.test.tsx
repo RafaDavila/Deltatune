@@ -1,5 +1,6 @@
 import {
   render,
+  fireEvent,
   screen,
   waitFor,
 } from "@testing-library/react";
@@ -13,24 +14,32 @@ import {
 
 import MusicGamePage from "./MusicGamePage";
 import {
+  ApiError,
   getSongs,
   resumeDailyChallenge,
   startDailyChallenge,
   type ResumeDailyChallengeResponse,
 } from "../services/deltatuneApi";
 
-vi.mock("../services/deltatuneApi", () => ({
-  getSongs: vi.fn(),
-  startDailyChallenge: vi.fn(),
-  resumeDailyChallenge: vi.fn(),
-  submitDailyGuess: vi.fn(),
-  skipDailyGuess: vi.fn(),
-  getDailyAudioUrl: vi.fn(() => "/daily-audio.mp3"),
-  getDailyStreakStats: vi.fn().mockResolvedValue({
-    currentStreak: 1,
-    bestStreak: 2,
-  }),
-}));
+vi.mock("../services/deltatuneApi", async (importOriginal) => {
+  const actual = await importOriginal<
+    typeof import("../services/deltatuneApi")
+  >();
+
+  return {
+    ApiError: actual.ApiError,
+    getSongs: vi.fn(),
+    startDailyChallenge: vi.fn(),
+    resumeDailyChallenge: vi.fn(),
+    submitDailyGuess: vi.fn(),
+    skipDailyGuess: vi.fn(),
+    getDailyAudioUrl: vi.fn(() => "/daily-audio.mp3"),
+    getDailyStreakStats: vi.fn().mockResolvedValue({
+      currentStreak: 1,
+      bestStreak: 2,
+    }),
+  };
+});
 
 vi.mock("../hooks/useAuth", () => ({
   useAuth: () => ({
@@ -223,5 +232,198 @@ test.each(scenarios)(
         screen.queryByTestId("recovered-result"),
       ).not.toBeInTheDocument();
     }
+  },
+);
+
+
+const recoveryFailures = [
+  {
+    name: "falha de rede",
+    error: () => new TypeError("Failed to fetch"),
+  },
+  {
+    name: "erro 500",
+    error: () => new ApiError("Erro interno.", 500),
+  },
+  {
+    name: "erro 503",
+    error: () => new ApiError("Serviço indisponível.", 503),
+  },
+  {
+    name: "erro 401",
+    error: () => new ApiError("Autenticação inválida.", 401),
+  },
+  {
+    name: "erro 403",
+    error: () => new ApiError("Acesso negado.", 403),
+  },
+  {
+    name: "outro conflito 409",
+    error: () => new ApiError("Outro conflito.", 409),
+  },
+];
+
+test.each(recoveryFailures)(
+  "preserva a sessão diária após $name e permite recuperar",
+  async ({ error }) => {
+    const recoveredGame: ResumeDailyChallengeResponse = {
+      ...baseGame,
+      attempts: [
+        { answer: "Pulou", status: "skipped" },
+      ],
+      remainingLives: 5,
+      won: false,
+      gameFinished: false,
+      songTitle: null,
+    };
+
+    localStorage.setItem(storageKey, baseGame.sessionId);
+
+    vi.mocked(resumeDailyChallenge)
+      .mockRejectedValueOnce(error())
+      .mockResolvedValueOnce(recoveredGame);
+
+    render(
+      <MemoryRouter>
+        <MusicGamePage />
+      </MemoryRouter>,
+    );
+
+    const retryButton = await screen.findByRole("button", {
+      name: "Tentar novamente",
+    });
+
+    expect(localStorage.getItem(storageKey)).toBe(
+      baseGame.sessionId,
+    );
+    expect(startDailyChallenge).not.toHaveBeenCalled();
+
+    fireEvent.click(retryButton);
+
+    await screen.findByText("5 de 6 tentativas restantes");
+
+    expect(resumeDailyChallenge).toHaveBeenCalledTimes(2);
+    expect(resumeDailyChallenge).toHaveBeenNthCalledWith(
+      1,
+      baseGame.sessionId,
+    );
+    expect(resumeDailyChallenge).toHaveBeenNthCalledWith(
+      2,
+      baseGame.sessionId,
+    );
+    expect(startDailyChallenge).not.toHaveBeenCalled();
+    expect(localStorage.getItem(storageKey)).toBe(
+      baseGame.sessionId,
+    );
+    expect(
+      screen.queryByRole("button", {
+        name: "Tentar novamente",
+      }),
+    ).not.toBeInTheDocument();
+  },
+);
+
+test.each([
+  {
+    name: "sessão inexistente",
+    status: 404,
+    message: "Sessão de partida não encontrada.",
+  },
+  {
+    name: "desafio anterior",
+    status: 409,
+    message: "A sessão pertence a outro desafio.",
+  },
+])(
+  "inicia uma sessão diária para $name",
+  async ({ status, message }) => {
+    localStorage.setItem(storageKey, "old-session");
+
+    vi.mocked(resumeDailyChallenge)
+      .mockRejectedValueOnce(new ApiError(message, status))
+      .mockResolvedValueOnce({
+        ...baseGame,
+        attempts: [],
+        remainingLives: 6,
+        won: false,
+        gameFinished: false,
+        songTitle: null,
+      });
+
+    render(
+      <MemoryRouter>
+        <MusicGamePage />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", {
+          name: "Enviar palpite",
+        }),
+      ).toBeEnabled();
+    });
+
+    expect(startDailyChallenge).toHaveBeenCalledTimes(1);
+    expect(resumeDailyChallenge).toHaveBeenNthCalledWith(
+      1,
+      "old-session",
+    );
+    expect(resumeDailyChallenge).toHaveBeenNthCalledWith(
+      2,
+      baseGame.sessionId,
+    );
+    expect(localStorage.getItem(storageKey)).toBe(
+      baseGame.sessionId,
+    );
+  },
+);
+
+test(
+  "preserva a sessão recém-criada se a recuperação falhar",
+  async () => {
+    vi.mocked(resumeDailyChallenge)
+      .mockRejectedValueOnce(
+        new ApiError("Serviço indisponível.", 503),
+      )
+      .mockResolvedValueOnce({
+        ...baseGame,
+        attempts: [],
+        remainingLives: 6,
+        won: false,
+        gameFinished: false,
+        songTitle: null,
+      });
+
+    render(
+      <MemoryRouter>
+        <MusicGamePage />
+      </MemoryRouter>,
+    );
+
+    const retryButton = await screen.findByRole("button", {
+      name: "Tentar novamente",
+    });
+
+    expect(startDailyChallenge).toHaveBeenCalledTimes(1);
+    expect(localStorage.getItem(storageKey)).toBe(
+      baseGame.sessionId,
+    );
+
+    fireEvent.click(retryButton);
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", {
+          name: "Enviar palpite",
+        }),
+      ).toBeEnabled();
+    });
+
+    expect(startDailyChallenge).toHaveBeenCalledTimes(1);
+    expect(resumeDailyChallenge).toHaveBeenCalledTimes(2);
+    expect(localStorage.getItem(storageKey)).toBe(
+      baseGame.sessionId,
+    );
   },
 );

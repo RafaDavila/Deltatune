@@ -88,6 +88,16 @@ export type DailyWeekResponse = {
   days: DailyWeekDayResponse[];
 };
 
+export class ApiError extends Error {
+  readonly status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
 const API_BASE_URL = (
   import.meta.env.VITE_API_URL ??
   "http://127.0.0.1:8000"
@@ -258,7 +268,7 @@ export async function getDailyChallenge(): Promise<DailyChallengeResponse> {
   );
 
   if (!response.ok) {
-    throw new Error("Não foi possivel carregar o desafio diário");
+    throw new ApiError("Não foi possivel carregar o desafio diário", response.status);
   }
   return response.json();
 }
@@ -402,8 +412,12 @@ export async function resumeDailyChallenge(
   );
 
   if (!response.ok) {
-    throw new Error(
-      "Não foi possível recuperar a partida.",
+    throw new ApiError(
+      await readErrorMessage(
+        response,
+        "Não foi possível recuperar a partida.",
+      ),
+      response.status,
     );
   }
 
@@ -566,8 +580,12 @@ export async function resumeInfiniteGame(
   );
 
   if (!response.ok) {
-    throw new Error(
-      "Não foi possível recuperar o modo infinito.",
+    throw new ApiError(
+      await readErrorMessage(
+        response,
+        "Não foi possível recuperar o modo infinito.",
+      ),
+      response.status,
     );
   }
 

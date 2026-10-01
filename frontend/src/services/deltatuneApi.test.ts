@@ -14,6 +14,7 @@ import {
 } from "./authStorage";
 
 import {
+  ApiError,
   getCurrentUser,
   loginUser,
   startDailyChallenge,
@@ -464,4 +465,71 @@ describe("infinite start request", () => {
       expect(result).toEqual(game);
     },
   );
+});
+
+describe("game recovery errors", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    clearAccessToken();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    localStorage.clear();
+  });
+
+  const recoveryRequests = [
+    {
+      name: "daily",
+      request: () => resumeDailyChallenge("daily-id"),
+    },
+    {
+      name: "infinite",
+      request: () => resumeInfiniteGame("run-id"),
+    },
+  ];
+
+  describe.each(recoveryRequests)("$name", ({ request }) => {
+    it.each([404, 409, 500, 503])(
+      "preserves HTTP status %s and the API message",
+      async (status) => {
+        vi.stubGlobal(
+          "fetch",
+          vi.fn<typeof fetch>().mockResolvedValue(
+            new Response(
+              JSON.stringify({
+                detail: "Falha ao recuperar a partida.",
+              }),
+              {
+                status,
+                headers: {
+                  "Content-Type": "application/json",
+                },
+              },
+            ),
+          ),
+        );
+
+        const result = request();
+
+        await expect(result).rejects.toBeInstanceOf(ApiError);
+
+        await expect(result).rejects.toMatchObject({
+          status,
+          message: "Falha ao recuperar a partida.",
+        });
+      },
+    );
+
+    it("propagates network failures without an HTTP status", async () => {
+      const networkError = new TypeError("Failed to fetch");
+
+      vi.stubGlobal(
+        "fetch",
+        vi.fn<typeof fetch>().mockRejectedValue(networkError),
+      );
+
+      await expect(request()).rejects.toBe(networkError);
+    });
+  });
 });
