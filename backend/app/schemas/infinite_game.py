@@ -87,6 +87,10 @@ class InfiniteNextRequest(
 ):
     pass
 
+class InfiniteAttemptResponse(BaseModel):
+    answer: str
+    status: str
+
 class InfiniteRoundResultResponse(BaseModel):
     model_config = ConfigDict(
         populate_by_name=True,
@@ -106,9 +110,13 @@ class InfiniteRoundResultResponse(BaseModel):
         alias="gameFinished",
     )
 
+
     attempts_used: int = Field(
         alias="attemptsUsed",
     )
+
+    attempts: list[InfiniteAttemptResponse]
+
 
     remaining_lives: int = Field(
         alias="remainingLives",
@@ -135,9 +143,6 @@ class InfiniteSkipResponse(
 ):
     skipped: bool
 
-class InfiniteAttemptResponse(BaseModel):
-    answer: str
-    status: str
 
 class ResumeInfiniteGameResponse(
     StartInfiniteGameResponse,

@@ -12,6 +12,7 @@ from app.schemas.challenge import (
     DailyWeekDayResponse,
     DailyWeekResponse,
     DailyStreakResponse,
+    SessionAttemptResponse,
 )
 from app.services.daily_challenge import (
     CHALLENGE_START_DATE,
@@ -37,7 +38,7 @@ from fastapi.responses import FileResponse
 from app.services.audio_files import (
     find_audio_file,
 )
-from app.services.answer_normalization import(
+from app.services.answer_normalization import (
     normalize_answer,
 )
 from app.dependencies.authentication import (
@@ -79,12 +80,6 @@ CurrentUser = Annotated[
 ]
 
 
-
-class SessionAttemptResponse(BaseModel):
-    answer: str
-    status: str
-
-
 class ResumeDailyChallengeResponse(DailyChallengeResponse):
     session_id: str = Field(serialization_alias="sessionId")
     attempts: list[SessionAttemptResponse]
@@ -114,6 +109,7 @@ def read_daily_challenge(
         next_reset_at=daily_challenge.next_reset_at,
     )
 
+
 @router.get(
     "/daily/week",
     response_model=DailyWeekResponse,
@@ -128,19 +124,14 @@ def read_daily_week(
 
     week_dates = get_week_dates(today)
 
-    sessions = (
-        list_game_sessions_by_user_and_period(
-            db,
-            current_user.id,
-            week_dates[0],
-            week_dates[-1],
-        )
+    sessions = list_game_sessions_by_user_and_period(
+        db,
+        current_user.id,
+        week_dates[0],
+        week_dates[-1],
     )
 
-    sessions_by_challenge = {
-        session.challenge_id: session
-        for session in sessions
-    }
+    sessions_by_challenge = {session.challenge_id: session for session in sessions}
 
     days: list[DailyWeekDayResponse] = []
 
@@ -151,10 +142,7 @@ def read_daily_week(
             challenge_id,
         )
 
-        if (
-            challenge_date < CHALLENGE_START_DATE
-            or challenge_date > today
-        ):
+        if challenge_date < CHALLENGE_START_DATE or challenge_date > today:
             day_status = "unavailable"
         elif game_session is None:
             day_status = "not_played"
@@ -166,10 +154,7 @@ def read_daily_week(
             day_status = "in_progress"
 
         challenge_number = max(
-            (
-                challenge_date
-                - CHALLENGE_START_DATE
-            ).days + 1,
+            (challenge_date - CHALLENGE_START_DATE).days + 1,
             1,
         )
 
@@ -179,21 +164,16 @@ def read_daily_week(
                 challenge_number=challenge_number,
                 status=day_status,
                 attempts_used=(
-                    len(game_session.attempts)
-                    if game_session is not None
-                    else 0
+                    len(game_session.attempts) if game_session is not None else 0
                 ),
-                session_id=(
-                    str(game_session.id)
-                    if game_session is not None
-                    else None
-                ),
+                session_id=(str(game_session.id) if game_session is not None else None),
             )
         )
 
     return DailyWeekResponse(
         days=days,
     )
+
 
 @router.get(
     "/daily/stats",
@@ -207,26 +187,23 @@ def read_daily_stats(
         GAME_TIME_ZONE,
     ).date()
 
-    sessions = (
-        list_game_sessions_by_user_and_period(
-            db,
-            current_user.id,
-            CHALLENGE_START_DATE,
-            today,
-        )
+    sessions = list_game_sessions_by_user_and_period(
+        db,
+        current_user.id,
+        CHALLENGE_START_DATE,
+        today,
     )
 
-    current_streak, best_streak = (
-        calculate_daily_streaks(
-            sessions,
-            today,
-        )
+    current_streak, best_streak = calculate_daily_streaks(
+        sessions,
+        today,
     )
 
     return DailyStreakResponse(
         current_streak=current_streak,
         best_streak=best_streak,
     )
+
 
 @router.get(
     "/daily/audio",
@@ -258,6 +235,7 @@ def read_daily_audio(
         media_type="audio/mpeg",
     )
 
+
 @router.post(
     "/daily/start",
     response_model=StartDailyChallengeResponse,
@@ -270,34 +248,22 @@ def start_daily_challenge(
     daily_challenge = get_daily_challenge_service(db)
 
     game_session = None
-    guest_token = (
-        generate_guest_game_token()
-        if current_user is None
-        else None
-    )
+    guest_token = generate_guest_game_token() if current_user is None else None
 
     if current_user is not None:
-        game_session = (
-            get_game_session_by_user_and_challenge(
-                db,
-                current_user.id,
-                daily_challenge.id,
-            )
+        game_session = get_game_session_by_user_and_challenge(
+            db,
+            current_user.id,
+            daily_challenge.id,
         )
 
     if game_session is None:
         game_session = create_game_session(
             db,
             daily_challenge.id,
-            user_id=(
-                current_user.id
-                if current_user is not None
-                else None
-            ),
+            user_id=(current_user.id if current_user is not None else None),
             guest_token_hash=(
-                hash_guest_game_token(guest_token)
-                if guest_token is not None
-                else None
+                hash_guest_game_token(guest_token) if guest_token is not None else None
             ),
         )
 
@@ -322,7 +288,6 @@ def resume_daily_challenge(
     db: DatabaseSession,
     current_user: OptionalCurrentUser,
     guest_token: GuestGameToken = None,
-
 ) -> ResumeDailyChallengeResponse:
     daily_challenge = get_daily_challenge_service(db)
 
@@ -378,7 +343,7 @@ def submit_daily_guess(
     current_user: OptionalCurrentUser,
     guest_token: GuestGameToken = None,
 ) -> GuessResponse:
-    daily_challenge = get_daily_challenge_service(db)    
+    daily_challenge = get_daily_challenge_service(db)
     if guess.challenge_id != daily_challenge.id:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -431,12 +396,11 @@ def submit_daily_guess(
         for attempt in game_session.attempts
     )
 
-
     if already_guessed:
         raise HTTPException(
-        status_code=status.HTTP_409_CONFLICT,
-        detail="Você já tentou essa música.",
-    )
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Você já tentou essa música.",
+        )
 
     is_correct = any(
         normalized_guess == normalize_answer(answer) for answer in accepted_answers
@@ -455,6 +419,13 @@ def submit_daily_guess(
         won=game_session.won,
         game_finished=game_session.finished,
         attempts_used=len(game_session.attempts),
+        attempts=[
+            SessionAttemptResponse(
+                answer=attempt.answer,
+                status=attempt.status,
+            )
+            for attempt in game_session.attempts
+        ],
         remaining_lives=(game_session.remaining_lives),
         song_title=(daily_challenge.song.title if game_session.finished else None),
     )
@@ -470,7 +441,7 @@ def skip_daily_guess(
     current_user: OptionalCurrentUser,
     guest_token: GuestGameToken = None,
 ) -> SkipResponse:
-    daily_challenge = get_daily_challenge_service(db)    
+    daily_challenge = get_daily_challenge_service(db)
     if skip.challenge_id != daily_challenge.id:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -521,6 +492,13 @@ def skip_daily_guess(
         won=False,
         game_finished=game_session.finished,
         attempts_used=len(game_session.attempts),
+        attempts=[
+        SessionAttemptResponse(
+                answer=attempt.answer,
+                status=attempt.status,
+            )
+            for attempt in game_session.attempts
+        ],
         remaining_lives=(game_session.remaining_lives),
         song_title=(daily_challenge.song.title if game_session.finished else None),
     )

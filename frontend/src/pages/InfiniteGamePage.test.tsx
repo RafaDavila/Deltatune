@@ -15,6 +15,9 @@ import {
 
 import InfiniteGamePage from "./InfiniteGamePage";
 import {
+  skipInfiniteGuess,
+  submitInfiniteGuess,
+  type SessionAttempt,
   ApiError,
   getSongs,
   getInfiniteRecord,
@@ -22,6 +25,8 @@ import {
   startInfiniteGame,
   type ResumeInfiniteGameResponse,
 } from "../services/deltatuneApi";
+
+import type { ComponentProps } from "react";
 
 const authState = vi.hoisted(() => ({
   user: null as { id: string } | null,
@@ -75,6 +80,41 @@ vi.mock("../services/deltatuneApi", async (importOriginal) => ({
   skipInfiniteGuess: vi.fn(),
   getInfiniteAudioUrl: vi.fn(
     () => "/infinite-audio.mp3",
+  ),
+}));
+
+vi.mock("../components/GuessForm", () => ({
+  default: ({
+    disabled,
+    guess,
+    onGuessChange,
+    onSubmit,
+    onSkip,
+  }: ComponentProps<
+    typeof import("../components/GuessForm").default
+  >) => (
+    <form onSubmit={onSubmit}>
+      <input
+        aria-label="Palpite"
+        value={guess}
+        disabled={disabled}
+        onChange={(event) =>
+          onGuessChange(event.target.value)
+        }
+      />
+
+      <button type="submit" disabled={disabled}>
+        Enviar palpite
+      </button>
+
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={onSkip}
+      >
+        Pular
+      </button>
+    </form>
   ),
 }));
 
@@ -218,7 +258,7 @@ test(
   "registra e preserva o maior recorde",
   async () => {
     localStorage.setItem(
-     "deltatune-infinite-run-anonymous",
+      "deltatune-infinite-run-anonymous",
       resumedGame.runId,
     );
 
@@ -418,11 +458,96 @@ test(
   },
 );
 
-test.each([
-  new TypeError("Failed to fetch"),
-  new ApiError("Erro interno.", 500),
-  new ApiError("Serviço indisponível.", 503),
-  new ApiError("Autenticação inválida.", 401),
-  new ApiError("Acesso negado.", 403),
-  new ApiError("Outro conflito.", 409),
-])
+test.each(["palpite", "pular"] as const)(
+  "sincroniza o histórico infinito após %s",
+  async (action) => {
+    localStorage.setItem(
+      "deltatune-infinite-run-anonymous",
+      resumedGame.runId,
+    );
+
+    vi.mocked(resumeInfiniteGame).mockResolvedValueOnce({
+      ...resumedGame,
+      attempts: [
+        { answer: "Primeiro erro", status: "wrong" },
+      ],
+      remainingLives: 5,
+    });
+
+    const attempts: SessionAttempt[] = [
+      { answer: "Primeiro erro", status: "wrong" },
+      { answer: "Erro de outra aba", status: "wrong" },
+      action === "palpite"
+        ? { answer: "Novo palpite", status: "wrong" }
+        : { answer: "Pulou", status: "skipped" },
+    ];
+
+    const result = {
+      runId: resumedGame.runId,
+      roundId: resumedGame.roundId,
+      attempts,
+      attemptsUsed: 3,
+      remainingLives: 3,
+      currentStreak: 2,
+      won: false,
+      gameFinished: false,
+      songTitle: null,
+    };
+
+    if (action === "palpite") {
+      vi.mocked(submitInfiniteGuess).mockResolvedValueOnce({
+        ...result,
+        correct: false,
+      });
+    } else {
+      vi.mocked(skipInfiniteGuess).mockResolvedValueOnce({
+        ...result,
+        skipped: true,
+      });
+    }
+
+    renderPage();
+
+    await screen.findByText("5 de 6 tentativas restantes");
+
+    if (action === "palpite") {
+      fireEvent.change(
+        screen.getByRole("textbox", { name: "Palpite" }),
+        { target: { value: "Novo palpite" } },
+      );
+
+      fireEvent.click(
+        screen.getByRole("button", {
+          name: "Enviar palpite",
+        }),
+      );
+    } else {
+      fireEvent.click(
+        screen.getByRole("button", { name: "Pular" }),
+      );
+    }
+
+    await screen.findByText("Erro de outra aba");
+
+    expect(
+      screen.getByText("3 de 6 tentativas restantes"),
+    ).toBeInTheDocument();
+
+    expect(
+      screen.getAllByText("Primeiro erro"),
+    ).toHaveLength(1);
+
+    if (action === "palpite") {
+      expect(submitInfiniteGuess).toHaveBeenCalledWith(
+        resumedGame.runId,
+        resumedGame.roundId,
+        "Novo palpite",
+      );
+    } else {
+      expect(skipInfiniteGuess).toHaveBeenCalledWith(
+        resumedGame.runId,
+        resumedGame.roundId,
+      );
+    }
+  },
+);

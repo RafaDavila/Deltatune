@@ -345,6 +345,13 @@ def submit_infinite_guess(
         won=game_round.won,
         game_finished=game_round.finished,
         attempts_used=len(game_round.attempts),
+        attempts=[
+            InfiniteAttemptResponse(
+                answer=attempt.answer,
+                status=attempt.status,
+            )
+            for attempt in game_round.attempts
+        ],
         remaining_lives=(
             game_round.remaining_lives
         ),
@@ -402,6 +409,13 @@ def skip_infinite_guess(
         won=game_round.won,
         game_finished=game_round.finished,
         attempts_used=len(game_round.attempts),
+        attempts=[
+            InfiniteAttemptResponse(
+                answer=attempt.answer,
+                status=attempt.status,
+            )
+            for attempt in game_round.attempts
+        ],
         remaining_lives=(
             game_round.remaining_lives
         ),
