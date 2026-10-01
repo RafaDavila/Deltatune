@@ -40,7 +40,11 @@ class GuessRequest(BaseModel):
         if not cleaned_answer:
             raise ValueError("O palpite não pode ficar vazio")
         return cleaned_answer
-    
+
+class SessionAttemptResponse(BaseModel):
+    answer: str
+    status: Literal["skipped", "wrong", "correct"]
+
 class GuessResponse(BaseModel):
     model_config = ConfigDict(
         populate_by_name=True,
@@ -57,6 +61,7 @@ class GuessResponse(BaseModel):
     attempts_used: int = Field(
         alias="attemptsUsed",
     )
+    attempts: list[SessionAttemptResponse]
     remaining_lives: int = Field(
         alias="remainingLives",
     )
@@ -116,6 +121,7 @@ class SkipResponse(BaseModel):
     attempts_used: int = Field(
         alias="attemptsUsed",
     )
+    attempts: list[SessionAttemptResponse]
     remaining_lives: int = Field(
         alias="remainingLives",
     )

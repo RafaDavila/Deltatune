@@ -14,12 +14,17 @@ import {
 
 import MusicGamePage from "./MusicGamePage";
 import {
+  skipDailyGuess,
+  submitDailyGuess,
+  type SessionAttempt,
   ApiError,
   getSongs,
   resumeDailyChallenge,
   startDailyChallenge,
   type ResumeDailyChallengeResponse,
 } from "../services/deltatuneApi";
+
+import type { ComponentProps } from "react";
 
 vi.mock("../services/deltatuneApi", async (importOriginal) => {
   const actual = await importOriginal<
@@ -62,8 +67,37 @@ vi.mock("../hooks/useAudioClip", () => ({
 
 // Permite verificar se a página libera ou bloqueia jogadas.
 vi.mock("../components/GuessForm", () => ({
-  default: ({ disabled }: { disabled: boolean }) => (
-    <button disabled={disabled}>Enviar palpite</button>
+  default: ({
+    disabled,
+    guess,
+    onGuessChange,
+    onSubmit,
+    onSkip,
+  }: ComponentProps<
+    typeof import("../components/GuessForm").default
+  >) => (
+    <form onSubmit={onSubmit}>
+      <input
+        aria-label="Palpite"
+        value={guess}
+        disabled={disabled}
+        onChange={(event) =>
+          onGuessChange(event.target.value)
+        }
+      />
+
+      <button type="submit" disabled={disabled}>
+        Enviar palpite
+      </button>
+
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={onSkip}
+      >
+        Pular
+      </button>
+    </form>
   ),
 }));
 
@@ -222,8 +256,7 @@ test.each(scenarios)(
       );
 
       expect(result).toHaveTextContent(
-        `${scenario.won ? "Vitória" : "Derrota"}: ${
-          scenario.songTitle
+        `${scenario.won ? "Vitória" : "Derrota"}: ${scenario.songTitle
         }`,
       );
     } else {
@@ -425,5 +458,101 @@ test(
     expect(localStorage.getItem(storageKey)).toBe(
       baseGame.sessionId,
     );
+  },
+);
+
+test.each(["palpite", "pular"] as const)(
+  "sincroniza todo o histórico do servidor após %s",
+  async (action) => {
+    localStorage.setItem(storageKey, baseGame.sessionId);
+
+    vi.mocked(resumeDailyChallenge).mockResolvedValueOnce({
+      ...baseGame,
+      attempts: [
+        { answer: "Primeiro erro", status: "wrong" },
+      ],
+      remainingLives: 5,
+      won: false,
+      gameFinished: false,
+      songTitle: null,
+    });
+
+    const attempts: SessionAttempt[] = [
+      { answer: "Primeiro erro", status: "wrong" },
+      { answer: "Erro de outra aba", status: "wrong" },
+      action === "palpite"
+        ? { answer: "Novo palpite", status: "wrong" }
+        : { answer: "Pulou", status: "skipped" },
+    ];
+
+    const result = {
+      challengeId: baseGame.challengeId,
+      attempts,
+      attemptsUsed: 3,
+      remainingLives: 3,
+      won: false,
+      gameFinished: false,
+      songTitle: null,
+    };
+
+    if (action === "palpite") {
+      vi.mocked(submitDailyGuess).mockResolvedValueOnce({
+        ...result,
+        correct: false,
+      });
+    } else {
+      vi.mocked(skipDailyGuess).mockResolvedValueOnce({
+        ...result,
+        skipped: true,
+      });
+    }
+
+    render(
+      <MemoryRouter>
+        <MusicGamePage />
+      </MemoryRouter>,
+    );
+
+    await screen.findByText("5 de 6 tentativas restantes");
+
+    if (action === "palpite") {
+      fireEvent.change(
+        screen.getByRole("textbox", { name: "Palpite" }),
+        { target: { value: "Novo palpite" } },
+      );
+
+      fireEvent.click(
+        screen.getByRole("button", {
+          name: "Enviar palpite",
+        }),
+      );
+    } else {
+      fireEvent.click(
+        screen.getByRole("button", { name: "Pular" }),
+      );
+    }
+
+    await screen.findByText("Erro de outra aba");
+
+    expect(
+      screen.getByText("3 de 6 tentativas restantes"),
+    ).toBeInTheDocument();
+
+    expect(
+      screen.getAllByText("Primeiro erro"),
+    ).toHaveLength(1);
+
+    if (action === "palpite") {
+      expect(submitDailyGuess).toHaveBeenCalledWith(
+        baseGame.sessionId,
+        baseGame.challengeId,
+        "Novo palpite",
+      );
+    } else {
+      expect(skipDailyGuess).toHaveBeenCalledWith(
+        baseGame.sessionId,
+        baseGame.challengeId,
+      );
+    }
   },
 );

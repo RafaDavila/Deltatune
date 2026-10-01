@@ -458,13 +458,8 @@ function InfiniteGamePage() {
 
       updateBestStreak(result.currentStreak);
 
-      setAttemptResults((previous) => [
-        ...previous,
-        {
-          answer: "Pulou",
-          status: "skipped",
-        },
-      ]);
+      setAttemptResults(result.attempts);
+      setRevealedSongTitle(result.songTitle);
 
       setGame((previous) =>
         previous
@@ -529,15 +524,8 @@ function InfiniteGamePage() {
 
       updateBestStreak(result.currentStreak);
 
-      setAttemptResults((previous) => [
-        ...previous,
-        {
-          answer: cleanedGuess,
-          status: result.correct
-            ? "correct"
-            : "wrong",
-        },
-      ]);
+     setAttemptResults(result.attempts);
+    setRevealedSongTitle(result.songTitle);
 
       setGame((previous) =>
         previous
@@ -549,11 +537,7 @@ function InfiniteGamePage() {
           : previous,
       );
 
-      if (result.songTitle) {
-        setRevealedSongTitle(
-          result.songTitle,
-        );
-      }
+
 
       setGuess("");
     } catch (error) {

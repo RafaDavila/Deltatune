@@ -11,6 +11,7 @@ export type GuessResponse = {
   won: boolean;
   gameFinished: boolean;
   attemptsUsed: number;
+  attempts: SessionAttempt[];
   remainingLives: number;
   songTitle: string | null;
 };
@@ -21,6 +22,7 @@ export type SkipResponse = {
   won: boolean;
   gameFinished: boolean;
   attemptsUsed: number;
+  attempts: SessionAttempt[];
   remainingLives: number;
   songTitle: string | null;
 };
@@ -492,6 +494,7 @@ export type InfiniteRoundResult = {
   won: boolean;
   gameFinished: boolean;
   attemptsUsed: number;
+  attempts: SessionAttempt[];
   remainingLives: number;
   currentStreak: number;
   songTitle: string | null;
